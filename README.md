@@ -1,2 +1,3 @@
 # ArtemisII
-Alt exam. Numerical modeling ArtemisII
+
+В данном репозитории находится программа для численного моделирования миссии Артемида 2.
