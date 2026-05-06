@@ -5,12 +5,28 @@
  * Утильный класс.
  */
 
+struct SimulationConfig {
+    std::string name;
+    double t_end;
+
+    double r_x, r_y, r_z;
+    double v_x, v_y, v_z;
+
+    double earth_angle;
+    double earth_mass;
+    double earth_radius;
+    double earth_mu;
+
+    double moon_x, moon_y, moon_z;
+    double moon_mass;
+    double moon_radius;
+};
 
 class Parcer
 {
 public:
-    static std::map<std::string, std::string> parce_cfg;
-    static std::map<std::string, std::string> parce_thrust;
+    static Rocket Parcer::rocket(std::string path)
+    static SimulationConfig parce_cfg(std::string path);
     static std::vector<std::pair<double, std::pair<double, double>> parce_thottle;
 };
 

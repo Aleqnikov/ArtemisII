@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     std::string path_to_thrust = clp.thrust();
     std::string path_to_thottle = clp.thottle();
 
-    std::map<std::string, std::string> system_cnfg = Parcer.parce_cfg(BASE_CONFIGURATION);
+    Rocket rocket = Parcer.parce_rocket(BASE_CONFIGURATION);
     std::map<std::string, std::string> thrust_cnfg = Parcer.parce_thrust(path_to_thrust);
 
     // Парсим данные из JPL для получения вектора скорости. Сразу его читаем в файл.

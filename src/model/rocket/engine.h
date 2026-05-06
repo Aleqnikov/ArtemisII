@@ -23,7 +23,8 @@ struct Engine
     double get_thottle();
     double get_mu();
 
-    Engine(double I_sp, double T_max, std::string thottle);
+    Engine::Engine(double I_sp, double T_max, std::string thottle_str)
+    : I_sp(I_sp), T_max(T_max) {};
 
 };
 
