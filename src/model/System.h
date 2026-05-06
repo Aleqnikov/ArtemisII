@@ -10,17 +10,18 @@ class System
 {
 public:
     double h;
-    double t;
+    double t_curr;
+	double t_end;
     Vector X;
     Rocket rocket;
     auto method;
     MFl mfl;
 
-    System (std::map<std::string, std::string>,
-        std::map<std::string, std::string>,
+    System (SimulationConfig sim_cfg,
+        Rocket rocket,
         std::string method,
-        std::vector<std::pair<double, std::pair<double, double>>,
-        double);
+        std::vector<std::pair<double, std::pair<double, double>> thottle_control,
+        double h);
 };
 
 

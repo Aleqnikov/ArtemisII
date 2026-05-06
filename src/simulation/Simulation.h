@@ -13,19 +13,10 @@ private:
     Telemetry telemetry;
 
 public:
-    void Run()
-    {
-        double t_0 = 0;
+    void Run();
 
-        while (t_0 != System.t)
-        {
-            step_control(system);
 
-            telemetry.log();
-        }
-    };
-
-    Simulation(System system, Telemetry telemetry);
+    Simulation(System system, Telemetry telemetry) : system(system), telemetry(telemetry) {};
 
 };
 

@@ -7,7 +7,8 @@
 
 enum class
 {
-    BASE_CONFIGURATION = ".../",
+    ROCKET_CONFIG: "/cfg/rocket.yaml",
+	SYSTEM_CONFIG: "/cfg/system.yaml"
     ..
 };
 
@@ -28,8 +29,8 @@ int main(int argc, char *argv[])
     std::string path_to_thrust = clp.thrust();
     std::string path_to_thottle = clp.thottle();
 
-    Rocket rocket = Parcer.parce_rocket(BASE_CONFIGURATION);
-    std::map<std::string, std::string> thrust_cnfg = Parcer.parce_thrust(path_to_thrust);
+    Rocket rocket = Parcer.parce_rocket(ROCKET_CONFIG);
+    SimulationConfig sim_cfg = Parcer.parce_cfg(SYSTEM_CONFIG);
 
     // Парсим данные из JPL для получения вектора скорости. Сразу его читаем в файл.
     // как бы (t, (vx, vy))
@@ -37,11 +38,11 @@ int main(int argc, char *argv[])
     std::vector<std::pair<double, std::pair<double, double>> thottle = Parcer.parce_thottle(path_to_thottle);
 
     // МОжет thrust cfg переименовать в конфиг ракеты.
-    System system(system_cnfg, thrust_cnfg, method, thottle, h);
+    System system(sim_cfg, rocket, method, thottle, h);
 
-    Telemetry telemetry(output);
+    Telemetry telemetry(system, output);
 
-    Simulator simulator(system, telemetry);
+    Simulation simulator(system, telemetry);
 
     simulator.Run();
 

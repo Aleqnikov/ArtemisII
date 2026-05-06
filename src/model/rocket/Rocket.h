@@ -10,6 +10,8 @@ struct Rocket
 	std::vector<Stage> work_stages;
     std::map<int, std::vector<int>> flight_plan;
 
+	double getMass();
+
     Rocket::Rocket(std::map<std::string, std::string> Rocket_cfg);
 };
 
