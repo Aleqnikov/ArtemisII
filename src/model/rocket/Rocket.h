@@ -4,6 +4,8 @@
 #include "stage.h"
 #include "core/Vector3d.h"
 
+struct ThrustResult { double F_total; double beta_total; };
+
 struct Rocket
 {
     Vector3D r;
@@ -17,6 +19,8 @@ struct Rocket
 	double getMass();
 
 	void init_start(Vector X);
+    std::vector<int> Rocket::active_stage_ids(double t) const;
+    ThrustResult Rocket::compute_thrust(double t) const;
 
     Rocket::Rocket(std::map<std::string, std::string> Rocket_cfg);
 };

@@ -4,25 +4,25 @@
 #include "Vector.h"
 #include "physics.h"
 
-Vector f (double t, Vector X, void *context)
-{
-    System* system = std::static_cast<System*>(context);
+Vector f(double t, Vector X, void* context) {
+    System* system = static_cast<System*>(context);  
 
-    Vector res(X);
+    Vector rM = moon_position(t);   // один раз
+    Vector dr = rM - X.r;
 
+    Vector res;
     res.r = X.v;
 
-    res.v =  (-Consts::mu_E) * X.r / std::pow(X.r.mod() , 3) +
-            + Consts::mu_M * ((moon_position(t) - X.r ) / std::pow((moon_position(t) - X.r ).mod(), 3) - 
-            moon_position(t) / std::pow(moon_position(t).mod(), 3)) + F(t)/m * n(t);
+    auto [F_total, beta_total] = system->rocket.compute_thrust(t);
 
-    res.m = -mu(t);
+    res.v = (-Consts::mu_E) * X.r / std::pow(X.r.mod(), 3)
+          + Consts::mu_M * (dr / std::pow(dr.mod(), 3) - rM / std::pow(rM.mod(), 3))
+          + (F_total / X.m) * system->n(t); // TODO поправить на MFL
+    
+    res.m = -beta_total;
 
     return res;
-
-
 }
-
 
 
 

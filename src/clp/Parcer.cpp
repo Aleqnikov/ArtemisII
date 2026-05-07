@@ -22,7 +22,7 @@ static Rocket Parcer::parce_cfg(std::string path) {
         auto throt = node["engines"]["thottle_prog"]["throttle"].as<std::vector<double>>();
 
         for(size_t i = 0; i < times.size(); ++i) {
-            stage.engine.thottle.push_back({times[i], throt[i]});
+            stage.engine.thottle.push_back({times[i], throt[i]/ 100.0});
         }
 
         rocket.stages.push_back(stage);
