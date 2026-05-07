@@ -1,22 +1,28 @@
 #ifndef ARTEMISII_VECTOR_H
 #define ARTEMISII_VECTOR_H
 
+#include <Vector3d.h>
 
 /**
  * Класс, описывающий вектор параметров, передающихся в программу численного
  * интегрирования.
  */
 
-struct Vector
-{
-	double x, y, z;
-	double vx, vy, vz;
 
+struct Vector {
+	Vector3D r;
+	Vector3D v;
 	double m;
 
-	Vector(double x, double y, double z,double vx, double vy, double vz, double m) :
-	x(x), y(y), z(z), vx(vx), vy(vy), vz(vz), m(m) {};
-}
+	Vector(std::vector<double> data);
+	Vector(Vector3D r, Vector3D v, double m);
+	Vector(std::vector<double> data);
+	Vector operator*(double num) const;
+	Vector operator/(double num) const;
+	Vector operator+(const Vector& other) const;
+	Vector operator-(const Vector& other) const;
+};
+
 
 
 

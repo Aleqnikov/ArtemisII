@@ -9,8 +9,11 @@ System::System (SimulationConfig sim_cfg,
 	if (method == "rk4") method = rk4;
 	if (method == "AD") method  = ad;
 
-	X = Vector(sim_cfg.r_x, sim_cfg.r_y, sim_cfg.r_z, sim_cfg.v_x, sim_cfg.v_y, sim_cfg.v_z,rocket.getMass());
+	X = Vector({sim_cfg.r_x, sim_cfg.r_y, sim_cfg.r_z, sim_cfg.v_x, sim_cfg.v_y, sim_cfg.v_z,rocket.getMass()});
 
-	MFL(thottle_contorl);
+
+	rocket.init_start(X);
+
+	MFL(thottle_control);
 
 }
