@@ -1,13 +1,14 @@
 #ifndef ARTEMISII_ODE_H
 #define ARTEMISII_ODE_H
 
-#include "Vector.h"
-#include "physics.h"
+#include "core/Vector.h"
+#include "core/physics.h"
+#include "core/moon.h"
 
 Vector f(double t, Vector X, void* context) {
     System* system = static_cast<System*>(context);  
 
-    Vector rM = moon_position(t);   // один раз
+    Vector rM = moon_position(t);  
     Vector dr = rM - X.r;
 
     Vector res;

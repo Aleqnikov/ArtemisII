@@ -1,6 +1,8 @@
 #ifndef ARTEMISII_PARCER_H
 #define ARTEMISII_PARCER_H
 
+#include "model/rocket/Rocket.h"
+
 /**
  * Утильный класс.
  */
@@ -25,7 +27,7 @@ struct SimulationConfig {
 class Parcer
 {
 public:
-    static Rocket Parcer::rocket(std::string path)
+    static Rocket parce_rocket(std::string path);
     static SimulationConfig parce_cfg(std::string path);
     static std::vector<std::pair<double, std::pair<double, double>> parce_thottle;
 };

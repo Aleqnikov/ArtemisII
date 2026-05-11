@@ -1,9 +1,8 @@
 #ifndef ARTEMISII_SIMULATION_H
 #define ARTEMISII_SIMULATION_H
 
-
-#include "../model/System.h"
-#include "../Telemetry.h"
+#include "model/System.h"
+#include "Telemetry.h"
 
 class Simulation
 {
@@ -16,7 +15,7 @@ public:
     void Run();
 
 
-    Simulation(System system, Telemetry telemetry) : system(system), telemetry(telemetry) {};
+    Simulation(System& system, Telemetry& telemetry) : system(system), telemetry(telemetry) {};
 
 };
 

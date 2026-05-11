@@ -10,7 +10,7 @@ struct Stage
 
     Engine engine;
 
-    Stage::Stage(double weight, double fuel_w, std::string thottle)
+    Stage(double weight, double fuel_w, std::string thottle)
     : weight(weight), fuel_w(fuel_w), engine(0, 0, thottle) {};
 };
 

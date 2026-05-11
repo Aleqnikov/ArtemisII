@@ -19,7 +19,7 @@ struct Engine
      * но это как бы временная вернсия.
      *                    (t, f(t))
      */
-    std::vector<std::pair<double, double>> thottle;
+    std::vector<std::pair<double, double>> throttle;
 
     double get_throttle(double t) const {
         if (throttle.empty()) return 0.0;
@@ -47,7 +47,7 @@ struct Engine
 
     bool is_burning(double t) const { return get_throttle(t) > 0.0; }
 
-    Engine::Engine(double I_sp, double T_max, std::string thottle_str)
+    Engine(double I_sp, double T_max, std::string thottle_str)
     : I_sp(I_sp), T_max(T_max) {};
 
 };

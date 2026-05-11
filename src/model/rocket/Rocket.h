@@ -1,7 +1,7 @@
 #ifndef ARTEMISII_ROCKET_H
 #define ARTEMISII_ROCKET_H
 
-#include "stage.h"
+#include "model/rocket/stage.h"
 #include "core/Vector3d.h"
 
 struct ThrustResult { double F_total; double beta_total; };
@@ -16,13 +16,13 @@ struct Rocket
 	std::vector<Stage> work_stages;
     std::map<int, std::vector<int>> flight_plan;
 
-	double getMass();
+	double getMass() const;
 
 	void init_start(Vector X);
-    std::vector<int> Rocket::active_stage_ids(double t) const;
-    ThrustResult Rocket::compute_thrust(double t) const;
+    std::vector<int> active_stage_ids(double t) const;
+    ThrustResult compute_thrust(double t) const;
 
-    Rocket::Rocket(std::map<std::string, std::string> Rocket_cfg);
+    Rocket(std::map<std::string, std::string> Rocket_cfg);
 };
 
 

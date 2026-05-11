@@ -1,21 +1,19 @@
 #include "Telemetry.h"
-
 #include "core/physics.h"
+#include "core/moon.h"
+#include "core/earth.h"
+#include "model/System.h"
 
-Telemetry::Telemetry(System& system, std::string output)
-{
-	this->system = &system;
+Telemetry::Telemetry(System& s, std::string output) : system(s) {
 	outStream.open(output);
 }
 
-~Telemetry();
-{
+Telemetry::~Telemetry() {
 	if (outStream.is_open()) {
 		outStream.close();
 	}
 }
 
-void Telemetry::log()
-{
-	outStrem << system.log() << moon.current_pos(system.t_curr) << earth.current_angle(system.t_curr) << std::endl;
+void Telemetry::log() {
+	outStream << system.log() << moon_position(system.t_curr).data[0] << std::endl;
 }

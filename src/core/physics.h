@@ -3,13 +3,11 @@
 
 
 
-enum class Consts
-{
-    double g_0 = 9.80665;
-    double mu_E = 3.986004418e14;
-    double mu_M = 4.9048695e12;
+namespace Consts {
+    inline constexpr double g0 = 9.80665;
+    inline constexpr double mu_E = 3.986004418e14;
+    inline constexpr double mu_M = 4.9048695e12;
 }
-
 
 
 #endif //ARTEMISII_PHYSICS_H

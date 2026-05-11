@@ -1,7 +1,7 @@
 #include "Parcer.h"
 #include <yaml-cpp/yaml.h>
 
-static Rocket Parcer::parce_cfg(std::string path) {
+static Rocket Parcer::parce_rocket(std::string path) {
     YAML::Node config = YAML::LoadFile(path);
 
     std::map<std::string, std::string> meta;

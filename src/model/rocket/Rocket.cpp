@@ -1,16 +1,15 @@
 #include "Rocket.h"
 
 
-void Rocket::init_start(Vector X)
-{
-    r = Vector3D({X.r})
-    v = Vector3D({X.v})
+void Rocket::init_start(Vector X) {
+    r = X.r;
+    v = X.v;
 }
 
 double Rocket::getMass() const {
     double m = 0.0;
     for (const auto& s : stages)
-        m += s.dry_mass + s.fuel_mass;
+        m += s.weight + s.fuel_w;
     return m;
 }
 
