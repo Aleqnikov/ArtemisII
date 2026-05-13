@@ -26,8 +26,6 @@ int main(int argc, char *argv[])
     std::string method = clp.method();
     std::string output = clp.output();
 
-    std::string path_to_thrust = clp.thrust();
-    std::string path_to_thottle = clp.thottle();
 
     std::vector<std::pair<double, Vector3D>> mfldata = Parcer::parce_mfl(MFL_DATA);
 
@@ -39,5 +37,6 @@ int main(int argc, char *argv[])
     Simulation simulator(system, telemetry);
 
     simulator.Run();
+
     return 0;
 }

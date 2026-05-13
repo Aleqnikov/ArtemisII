@@ -6,11 +6,9 @@ Vector3D MFL::get_n(System system, double t)
 {
     // получить временной промежуток, и отинтерполировать и выдать вектор.
 
-    if (mfl.empty())
-        return Vector3D(0.0, 0.0, 1.0);
 
-    if (t <= mfl.front().first)
-        return mfl.front().second;
+
+    return Vector3D(-0.3953, 0.7837, 0.4791);
 
     if (t >= mfl.back().first)
         return mfl.back().second;

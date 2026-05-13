@@ -15,5 +15,5 @@ Telemetry::~Telemetry() {
 }
 
 void Telemetry::log() {
-	outStream << system.log() << moon_position(system.t_curr).data[0] << std::endl;
+	outStream << system.log()  << moon_position(system.t_curr).to_string() << std::endl;
 }

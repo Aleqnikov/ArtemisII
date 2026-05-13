@@ -17,6 +17,7 @@ public:
     Vector3D(std::array<double, 3> pars) : data(pars) {};
     Vector3D(double x, double y, double z) : data({x, y, z}) {};
 	Vector3D() : data({0.0, 0.0, 0.0}) {}
+
     Vector3D operator+(const Vector3D &other) const
     {
         Vector3D res(data);
@@ -62,7 +63,7 @@ public:
 	std::string to_string()
 	{
     	std::ostringstream res;
-    	res << data[0] << " " << data[1] << " " << data[2];
+    	res << data[0] << " " << data[1] << " " << data[2] << " ";
     	return res.str();
 	}
 

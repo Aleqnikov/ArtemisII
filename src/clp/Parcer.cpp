@@ -7,41 +7,31 @@
 Rocket Parcer::parce_rocket(std::string path) {
     YAML::Node config = YAML::LoadFile(path);
 
-    std::map<std::string, std::string> meta;
-    meta["name"] = config["rocket"]["metadata"]["name"].as<std::string>();
-
     Rocket rocket;
 
     for (auto const& node : config["rocket"]["stages"]) {
-        double dry = node["dry_mass"].as<double>();
-        double fuel = node["fuel_mass"].as<double>();
-
-        Stage stage(dry, fuel, "");
-
-        stage.engine.I_sp = node["engines"]["i_sp"].as<double>();
+        Stage stage(node["dry_mass"].as<double>(), node["fuel_mass"].as<double>(), "");
+        stage.engine.I_sp  = node["engines"]["i_sp"].as<double>();
         stage.engine.T_max = node["engines"]["t_max"].as<double>();
 
         auto times = node["engines"]["thottle_prog"]["time"].as<std::vector<double>>();
         auto throt = node["engines"]["thottle_prog"]["throttle"].as<std::vector<double>>();
-
-        for(size_t i = 0; i < times.size(); ++i) {
+        for (size_t i = 0; i < times.size(); ++i)
             stage.engine.throttle.push_back({times[i], throt[i] / 100.0});
-        }
 
         rocket.stages.push_back(stage);
     }
 
+    // flight_plan — только для построения дерева, дальше не нужен
+    std::map<int, std::vector<int>> flight_plan;
     auto worked_logic = config["rocket"]["global_parametrs"]["stage_worked"];
-
     for (YAML::const_iterator it = worked_logic.begin(); it != worked_logic.end(); ++it) {
-        int phase_number = it->first.as<int>();
-        std::vector<int> active_stages = it->second.as<std::vector<int>>();
-
-        for(int &id : active_stages) {
-            rocket.flight_plan[phase_number].push_back(id - 1);
-        }
+        int phase = it->first.as<int>();
+        for (int id : it->second.as<std::vector<int>>())
+            flight_plan[phase].push_back(id - 1); // 1-based → 0-based
     }
 
+    rocket.build_graph(flight_plan); // строим дерево и забываем про flight_plan
     return rocket;
 }
 

@@ -19,8 +19,8 @@ System::System(SimulationConfig sim_cfg, Rocket rocket, std::string method_i,
       t_curr(0),
       t_end(sim_cfg.t_end),
       rocket(rocket),
-      X({sim_cfg.r_x, sim_cfg.r_y, sim_cfg.r_z} , {sim_cfg.v_x, sim_cfg.v_y, sim_cfg.v_z}, rocket.getMass()),  // ← инициализируй Vector
-      mfl(mfldata)                                   // ← инициализируй MFL
+      X({sim_cfg.r_x, sim_cfg.r_y, sim_cfg.r_z} , {sim_cfg.v_x, sim_cfg.v_y, sim_cfg.v_z}, rocket.getMass()),
+      mfl(mfldata)
 {
     method = RK4;
 

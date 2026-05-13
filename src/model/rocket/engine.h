@@ -15,11 +15,6 @@ struct Engine
     double I_sp;
     double T_max;
 
-    /**
-     * Тяга двигателя в каждый момент времени. Пока непонятно как определить корректно,
-     * но это как бы временная вернсия.
-     *                    (t, f(t))
-     */
     std::vector<std::pair<double, double>> throttle;
 
     double get_throttle(double t) const {

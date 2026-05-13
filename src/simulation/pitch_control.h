@@ -3,100 +3,99 @@
 
 #include "model/System.h"
 #include "core/ode.h"
+#include <algorithm>
+#include <vector>
 
-void step_control(System& system)
+void step_control(System& system, double& t_0)
 {
-    // Пробуем сделать шаг h
+    const double EPS = 1e-7;
+    double original_h = system.h;
+
+    std::vector<Stage*> active_stages = system.rocket.get_active_stages();
+
     Vector new_X = system.method(system.t_curr, system.X, system.h, f, &system);
     double fuel_used = system.X.m - new_X.m;
 
-    // Считаем beta каждой активной ступени и суммарную beta_total
-    auto active_ids = system.rocket.active_stage_ids(system.t_curr);
-
     double beta_total = 0.0;
-    for (int id : active_ids)
-        beta_total += system.rocket.stages[id].engine.get_beta(system.t_curr);
+    for (auto* stage : active_stages) {
+        if (stage->fuel_w > EPS)
+            beta_total += stage->engine.get_beta(system.t_curr);
+    }
 
-    // Проверяем — не исчерпалась ли топливо у какой-то ступени
+    Stage* burnout_stage = nullptr;
     int burnout_id = -1;
-    if (beta_total > 0.0) {
-        for (int id : active_ids) {
-            Stage& stage = system.rocket.stages[id];
-            if (stage.fuel_w <= 0.0) continue;
 
-            double beta_i = system.rocket.stages[id].engine.get_beta(system.t_curr);
+    if (beta_total > 0.0) {
+        for (auto const& [id, node] : system.rocket.stage_graph) {
+            if (node.in_degree != 0) continue;
+            Stage& stage = system.rocket.stages[id];
+            if (stage.fuel_w <= EPS) continue;
+
+            double beta_i = stage.engine.get_beta(system.t_curr);
             double fuel_used_i = fuel_used * (beta_i / beta_total);
 
-            if (fuel_used_i >= stage.fuel_w) {
+            if (fuel_used_i >= stage.fuel_w - EPS) {
+                burnout_stage = &stage;
                 burnout_id = id;
-                break; // одна ступень за шаг
+                break;
             }
         }
     }
 
-    if (burnout_id >= 0) {
-        // Бинарным поиском находим точный шаг, при котором топливо ступени исчерпывается
-        Stage& stage = system.rocket.stages[burnout_id];
-        double beta_stage = stage.engine.get_beta(system.t_curr);
+    if (burnout_id != -1) {
+        // --- Бинарный поиск момента выгорания (h) ---
+        double lo = 0.0, hi = system.h, base_h = system.h;
+        double beta_stage = burnout_stage->engine.get_beta(system.t_curr);
 
-        double lo = 0.0, hi = system.h;
-        double base_h = system.h;
-        const int max_iter = 60;
-
-        for (int i = 0; i < max_iter; ++i) {
+        for (int i = 0; i < 60; ++i) {
             base_h = (lo + hi) / 2.0;
-            new_X = system.method(system.t_curr, system.X, base_h, f, &system);
-            fuel_used = system.X.m - new_X.m;
+            Vector test_X = system.method(system.t_curr, system.X, base_h, f, &system);
+            double test_fuel_used = system.X.m - test_X.m;
+            double fuel_used_i = (beta_total > 0.0) ? test_fuel_used * (beta_stage / beta_total) : 0.0;
+            double remainder = burnout_stage->fuel_w - fuel_used_i;
 
-            double fuel_used_i = (beta_total > 0.0)
-                ? fuel_used * (beta_stage / beta_total)
-                : 0.0;
-
-            double remainder = stage.fuel_w - fuel_used_i;
-
-            if (remainder > 0.0 && remainder / stage.fuel_w < 1e-6) break;
-
-            if (remainder <= 0.0)
-                hi = base_h;
-            else
-                lo = base_h;
-        }
-
-        // Обнуляем топливо выгоревшей ступени, остальным списываем пропорционально
-        for (int id : active_ids) {
-            Stage& s = system.rocket.stages[id];
-            if (s.fuel_w <= 0.0) continue;
-
-            double beta_i = system.rocket.stages[id].engine.get_beta(system.t_curr);
-            double fuel_used_i = (beta_total > 0.0)
-                ? fuel_used * (beta_i / beta_total)
-                : 0.0;
-
-            if (id == burnout_id)
-                s.fuel_w = 0.0;
-            else
-                s.fuel_w -= fuel_used_i;
+            if (std::abs(remainder) < 1e-9) break;
+            if (remainder <= 0.0) hi = base_h;
+            else                  lo = base_h;
         }
 
         system.h = base_h;
+        new_X = system.method(system.t_curr, system.X, system.h, f, &system);
+        double final_fuel_used = system.X.m - new_X.m;
+
+        for (auto* s : active_stages) {
+            double beta_i = s->engine.get_beta(system.t_curr);
+            double fuel_used_i = (beta_total > 0.0) ? final_fuel_used * (beta_i / beta_total) : 0.0;
+            s->fuel_w = std::max(0.0, s->fuel_w - fuel_used_i);
+        }
+        burnout_stage->fuel_w = 0.0;
+
+        // --- ЛОГИКА ОТДЕЛЕНИЯ С ЗАЩИТОЙ ПОСЛЕДНЕЙ СТУПЕНИ ---
+        // Если в графе больше одной вершины, значит есть что отделять.
+        // Если осталась одна — это наш "финальный объект", его не трогаем.
+        if (system.rocket.stage_graph.size() > 1) {
+            // Вычитаем сухую массу отделяемой ступени из текущего вектора состояния
+            new_X.m -= system.rocket.stages[burnout_id].weight;
+            // Убираем узел из графа и обновляем зависимости
+            system.rocket.separate_stage(burnout_id);
+        } else {
+            // Если ступень последняя, она просто летит дальше с нулевым запасом топлива.
+            // Масса в new_X.m уже правильная (она включает сухую массу этой ступени).
+        }
 
     } else {
-        // Всё нормально — просто списываем топливо пропорционально
-        for (int id : active_ids) {
-            Stage& s = system.rocket.stages[id];
-            if (s.fuel_w <= 0.0) continue;
-
-            double beta_i = system.rocket.stages[id].engine.get_beta(system.t_curr);
-            double fuel_used_i = (beta_total > 0.0)
-                ? fuel_used * (beta_i / beta_total)
-                : 0.0;
-
-            s.fuel_w -= fuel_used_i;
+        // Обычный шаг
+        for (auto* s : active_stages) {
+            double beta_i = s->engine.get_beta(system.t_curr);
+            double fuel_used_i = (beta_total > 0.0) ? fuel_used * (beta_i / beta_total) : 0.0;
+            s->fuel_w = std::max(0.0, s->fuel_w - fuel_used_i);
         }
     }
 
     system.X = new_X;
     system.t_curr += system.h;
+    t_0 = system.t_curr;
+    system.h = original_h;
 }
 
 #endif //ARTEMISII_PITCH_CONTROL_H

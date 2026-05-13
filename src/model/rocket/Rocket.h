@@ -7,28 +7,38 @@
 #include <vector>
 #include <map>
 
-struct ThrustResult { double F_total; double beta_total; };
+struct ThrustResult {
+	double F_total;
+	double beta_total;
+};
 
-struct Rocket
-{
+struct StageNode {
+	int id;
+	std::vector<int> successors; // Ступени, которые зависят от этой
+	int in_degree = 0;           // Сколько ступеней должны отделиться перед этой
+};
 
+struct Rocket {
+	Vector3D r;
+	Vector3D v;
 
-    Vector3D r;
-    Vector3D v;
-
-    std::vector<Stage> stages;
-
-	std::vector<Stage> work_stages;
-    std::map<int, std::vector<int>> flight_plan;
+	std::vector<Stage> stages;
+	std::map<int, StageNode> stage_graph; // Наш граф зависимостей
 
 	double getMass() const;
-
 	void init_start(Vector X);
-    std::vector<int> active_stage_ids(double t) const;
-    ThrustResult compute_thrust(double t) const;
+
+	// Переименовали для ясности
+	void build_graph(const std::map<int, std::vector<int>>& flight_plan);
+
+	std::vector<Stage*>       get_active_stages();
+	std::vector<const Stage*> get_active_stages() const;
+
+	ThrustResult compute_thrust(double t) const;
+	void separate_stage(int id);
+	void check_and_separate();
 
 	Rocket() = default;
 };
 
-
-#endif //ARTEMISII_ROCKET_H
+#endif

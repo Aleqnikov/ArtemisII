@@ -8,7 +8,12 @@ void Simulation::Run()
 
 	while (t_0 < system.t_end)
 	{
-		step_control(system);
+
+		if (t_0 > 13000)
+		{
+			t_0 += 0;
+		}
+		step_control(system, t_0);
 		telemetry.log();
 	}
 }
