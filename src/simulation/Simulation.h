@@ -7,9 +7,9 @@
 class Simulation
 {
 private:
-    System system;
+    System& system;
 
-    Telemetry telemetry;
+    Telemetry& telemetry;
 
 public:
     void Run();

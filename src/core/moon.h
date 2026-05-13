@@ -58,7 +58,7 @@ static double eccentric_anomaly(double M) {
 // ─── Основная функция ────────────────────────────────────────────────────────
 /// @param t  Время от момента запуска Artemis II [секунды]
 /// @return   Геоцентрическое положение Луны {X, Y, Z} в ECI J2000 [м]
-Vector3D moon_position(double t) {
+inline Vector3D moon_position(double t) {
     using namespace artemis2;
 
     // 1. Средняя и эксцентрическая аномалии

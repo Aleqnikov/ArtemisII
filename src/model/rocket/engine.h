@@ -1,7 +1,8 @@
 #ifndef ARTEMISII_ENGINE_H
 #define ARTEMISII_ENGINE_H
-
+#include <string>
 #include "core/physics.h"
+#include <vector>
 
 /**
  * Условно логика такая - "двигатель за какой то определенный промежуток времени расходует

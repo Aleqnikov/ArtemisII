@@ -1,6 +1,6 @@
 #ifndef ARTEMISII_STAGE_H
 #define ARTEMISII_STAGE_H
-
+#include <string>
 #include "engine.h"
 
 struct Stage

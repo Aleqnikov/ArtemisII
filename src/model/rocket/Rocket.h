@@ -3,11 +3,16 @@
 
 #include "model/rocket/stage.h"
 #include "core/Vector3d.h"
+#include "core/Vector.h"
+#include <vector>
+#include <map>
 
 struct ThrustResult { double F_total; double beta_total; };
 
 struct Rocket
 {
+
+
     Vector3D r;
     Vector3D v;
 
@@ -22,7 +27,7 @@ struct Rocket
     std::vector<int> active_stage_ids(double t) const;
     ThrustResult compute_thrust(double t) const;
 
-    Rocket(std::map<std::string, std::string> Rocket_cfg);
+	Rocket() = default;
 };
 
 

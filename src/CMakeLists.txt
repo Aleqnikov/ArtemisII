@@ -14,32 +14,27 @@ FetchContent_Declare(
 
 FetchContent_Declare(
         cli11
-        GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
-        GIT_TAG v2.3.2
+        URL https://github.com/CLIUtils/CLI11/releases/download/v2.4.1/CLI11.hpp
+        DOWNLOAD_NO_EXTRACT TRUE
 )
 
 set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-set(CLI11_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(CLI11_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(yaml-cpp cli11)
 
-
-file(GLOB_RECURSE SOURCES
-        "*.cpp"
-        "*.h"
-)
+file(GLOB_RECURSE SOURCES "*.cpp" "*.h")
+list(FILTER SOURCES EXCLUDE REGEX ".*/_deps/.*")
+list(FILTER SOURCES EXCLUDE REGEX ".*/CMakeFiles/.*")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-
-target_include_directories(${PROJECT_NAME} PRIVATE .)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-        yaml-cpp
-        CLI11::CLI11
+target_include_directories(${PROJECT_NAME} PRIVATE
+        .
+        ${cli11_SOURCE_DIR}
 )
+
+target_link_libraries(${PROJECT_NAME} PRIVATE yaml-cpp)
 
 if(UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE m)

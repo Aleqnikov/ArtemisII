@@ -3,24 +3,35 @@
 
 #include "rocket/Rocket.h"
 #include "../core/Vector.h"
+#include "MFL.h"
+#include "../clp/Parcer.h"
 
-// Класс, что описыват текущее состояние системы,  состоит в основном из вектора
+// Тип указателя на численный метод
+using MethodFn = Vector(*)(double t, const Vector& y, double h,
+                           Vector(*f)(double t, const Vector y, void* ctx),
+                           void* ctx);
+
+// Класс, что описывает текущее состояние системы, состоит в основном из вектора
 // значений, и текущей ракеты.
 class System
 {
 public:
     double h;
     double t_curr;
-	double t_end;
+    double t_end;
     Vector X;
     Rocket rocket;
-    auto method;
-    MFl mfl;
+    MethodFn method;
+    MFL mfl;
+
+    Vector3D n(double t) { return mfl.get_n(*this, t); }
+
+    std::string log();
 
     System (SimulationConfig sim_cfg,
         Rocket rocket,
         std::string method,
-        std::vector<std::pair<double, std::pair<double, double>> thottle_control,
+        std::vector<std::pair<double, Vector3D>> thottle_control,
         double h);
 };
 

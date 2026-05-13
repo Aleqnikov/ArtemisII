@@ -32,7 +32,7 @@ ThrustResult Rocket::compute_thrust(double t) const {
     double F = 0.0, beta = 0.0;
     for (int id : active_stage_ids(t)) {
         const auto& s = stages[id];
-        if (s.fuel_mass <= 0.0) continue;   
+        if (s.fuel_w <= 0.0) continue;
         F    += s.engine.get_thrust(t);
         beta += s.engine.get_beta(t);
     }

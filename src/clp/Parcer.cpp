@@ -1,13 +1,16 @@
 #include "Parcer.h"
 #include <yaml-cpp/yaml.h>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
 
-static Rocket Parcer::parce_rocket(std::string path) {
+Rocket Parcer::parce_rocket(std::string path) {
     YAML::Node config = YAML::LoadFile(path);
 
     std::map<std::string, std::string> meta;
     meta["name"] = config["rocket"]["metadata"]["name"].as<std::string>();
 
-    Rocket rocket(meta);
+    Rocket rocket;
 
     for (auto const& node : config["rocket"]["stages"]) {
         double dry = node["dry_mass"].as<double>();
@@ -22,12 +25,11 @@ static Rocket Parcer::parce_rocket(std::string path) {
         auto throt = node["engines"]["thottle_prog"]["throttle"].as<std::vector<double>>();
 
         for(size_t i = 0; i < times.size(); ++i) {
-            stage.engine.thottle.push_back({times[i], throt[i]/ 100.0});
+            stage.engine.throttle.push_back({times[i], throt[i] / 100.0});
         }
 
         rocket.stages.push_back(stage);
     }
-
 
     auto worked_logic = config["rocket"]["global_parametrs"]["stage_worked"];
 
@@ -44,9 +46,7 @@ static Rocket Parcer::parce_rocket(std::string path) {
 }
 
 
-
-
-static SimulationConfig Parcer::parce_cfg(std::string path)
+SimulationConfig Parcer::parce_cfg(std::string path)
 {
     YAML::Node config = YAML::LoadFile(path);
     YAML::Node sim_node = config["simulation"];
@@ -78,4 +78,27 @@ static SimulationConfig Parcer::parce_cfg(std::string path)
     sc.moon_radius = m["radius"].as<double>();
 
     return sc;
+}
+
+
+std::vector<std::pair<double, Vector3D>> Parcer::parce_mfl(std::string path)
+{
+    std::ifstream file(path);
+    if (!file.is_open())
+        throw std::runtime_error("Cannot open MFL file: " + path);
+
+    std::vector<std::pair<double, Vector3D>> result;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream ss(line);
+        double t, vx, vy, vz;
+        if (!(ss >> t >> vx >> vy >> vz)) continue;
+
+        result.push_back({t, Vector3D(vx, vy, vz)});
+    }
+
+    return result;
 }

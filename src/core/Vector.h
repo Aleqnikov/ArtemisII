@@ -1,6 +1,6 @@
 #ifndef ARTEMISII_VECTOR_H
 #define ARTEMISII_VECTOR_H
-
+#include <vector>
 #include "core/Vector3d.h"
 /**
  * Класс, описывающий вектор параметров, передающихся в программу численного

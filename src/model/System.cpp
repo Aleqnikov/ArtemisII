@@ -1,19 +1,27 @@
 #include "System.h"
+#include "../core/numerical_methods/rk45.h"
 
-System::System (SimulationConfig sim_cfg,
-        Rocket rocket,
-        std::string method,
-        std::vector<std::pair<double, std::pair<double, double>> thottle_control,
-        double h) : h(h), t_curr(0), t_end(sim_cfg.t), rocket(rocket)
+#include <sstream>
+
+std::string System::log() {
+    std::ostringstream res;
+    res << t_curr << " ";
+    res << X.r.to_string();
+    res << X.v.to_string();
+    res << X.m << " ";
+    return res.str();
+}
+
+
+System::System(SimulationConfig sim_cfg, Rocket rocket, std::string method_i,
+               std::vector<std::pair<double, Vector3D>> mfldata, double h)
+    : h(h),
+      t_curr(0),
+      t_end(sim_cfg.t_end),
+      rocket(rocket),
+      X({sim_cfg.r_x, sim_cfg.r_y, sim_cfg.r_z} , {sim_cfg.v_x, sim_cfg.v_y, sim_cfg.v_z}, rocket.getMass()),  // ← инициализируй Vector
+      mfl(mfldata)                                   // ← инициализируй MFL
 {
-	if (method == "rk4") method = rk4;
-	if (method == "AD") method  = ad;
-
-	X = Vector({sim_cfg.r_x, sim_cfg.r_y, sim_cfg.r_z, sim_cfg.v_x, sim_cfg.v_y, sim_cfg.v_z,rocket.getMass()});
-
-
-	rocket.init_start(X);
-
-	MFL(thottle_control);
+    method = RK4;
 
 }

@@ -1,5 +1,7 @@
 #include "Vector.h"
 
+Vector::Vector(Vector3D r, Vector3D v, double m)
+    : r(r), v(v), m(m) {};
 
 Vector Vector::operator*(double num) const {
 	Vector result = *this;

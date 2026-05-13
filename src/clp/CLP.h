@@ -1,7 +1,7 @@
 #ifndef ARTEMISII_CLP_H
 #define ARTEMISII_CLP_H
 
-
+#include <string>
 // Command Line Parcer
 class CLP
 {

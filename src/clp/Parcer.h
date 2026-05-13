@@ -29,7 +29,7 @@ class Parcer
 public:
     static Rocket parce_rocket(std::string path);
     static SimulationConfig parce_cfg(std::string path);
-    static std::vector<std::pair<double, std::pair<double, double>> parce_thottle;
+    static std::vector<std::pair<double, Vector3D>> parce_mfl(std::string path);
 };
 
 

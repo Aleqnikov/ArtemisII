@@ -2,6 +2,11 @@
 #define ARTEMISII_MFL_H
 
 #include <tuple>
+#include <vector>
+#include "../core/Vector3d.h"
+
+
+class System;
 /**
  * Missile Flight Control
  * Управление полетом ракеты. В данном файле находися программный коплекс
@@ -12,12 +17,13 @@
 class MFL
 {
 private:
-    //          (t, f(t))
-    std::vector<std::pair<double, double>> mfl;
+    std::vector<std::pair<double, Vector3D>> mfl;
 public:
-    std::tuple<double, double, double> get_n(double t);
+    Vector3D get_n(System system, double t);
 
-    MFL(std::vector<std::pair<double, double>>);
+
+
+    MFL(std::vector<std::pair<double, Vector3D>> mfl_data): mfl(mfl_data) {};
 };
 
 
