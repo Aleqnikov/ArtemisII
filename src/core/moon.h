@@ -18,12 +18,12 @@ constexpr double GM_EARTH = 3.986004418E+14;
     constexpr double VZ0 =  2.180000E+01;
 
     // Оскулирующие кеплеровские элементы (производные из вектора состояния JPL):
-    constexpr double A          = 3.0637283066E+08; // Оскулирующая большая полуось [м]
-    constexpr double E          = 2.5143214226E-01; // Оскулирующий эксцентриситет
-    constexpr double I          = 4.4203943689E-02; // Наклонение [рад] (= 2.533°)
-    constexpr double OMEGA_NODE = 6.0733329297E+00; // Долгота восх. узла [рад] (= 347.98°)
-    constexpr double OMEGA_PERI = 4.1420174132E+00; // Аргумент перигея [рад] (= 237.32°)
-    constexpr double M0         = 3.1137032494E+00; // Средняя аномалия при t=0 [рад]
+    constexpr double A          = 3.9191568104e+08; // Оскулирующая большая полуось [м]
+    constexpr double E          = 0.0390389413; // Оскулирующий эксцентриситет
+    constexpr double I          = 0.4943709725; // Наклонение [рад] (= 2.533°)
+    constexpr double OMEGA_NODE = 6.2136677400; // Долгота восх. узла [рад] (= 347.98°)
+    constexpr double OMEGA_PERI = 1.7037169949; // Аргумент перигея [рад] (= 237.32°)
+    constexpr double M0         = 1.6380980300; // Средняя аномалия при t=0 [рад]
 // Среднее движение (угловая скорость) n = sqrt(mu / a^3)
 const double N = std::sqrt(GM_EARTH / std::pow(A, 3));
 
@@ -84,5 +84,18 @@ inline Vector3D moon_position(double t) {
     double Rz = x_orb * (sin_w * sin_i) +
                 y_orb * (cos_w * sin_i);
 
-    return {Rx, Ry, Rz};
+
+    // --- ДОБАВЛЕННЫЙ КОД: Переход из экваториальной (ECI) в эклиптическую систему ---
+    // Угол наклона эклиптики к экватору J2000 (23.439291 градуса в радианах)
+    constexpr double EPSILON = 0.409092804222;
+
+    double cos_eps = std::cos(EPSILON);
+    double sin_eps = std::sin(EPSILON);
+
+    // Вращение вокруг оси X
+    double X_ecl = Rx;
+    double Y_ecl = Ry * cos_eps + Rz * sin_eps;
+    double Z_ecl = -Ry * sin_eps + Rz * cos_eps;
+
+    return {X_ecl, Y_ecl, Z_ecl};
 }
