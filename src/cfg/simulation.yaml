@@ -3,13 +3,12 @@ simulation:
     name: "Modeling Artemis-II"
   parametrs:
     t_end: 1000000    # С запасом взял
-
   start_parametrs:
-    r_x: 5.508e6
-    r_y: -0.845e6
-    r_z: 3.038e6
-    v_x: -61.6     # -0.0616 * 10^3
-    v_y: -401.7    # -0.4017 * 10^3
+    r_x: 0.154e+06
+    r_y: 5.602e+06
+    r_z: 3.038e+06
+    v_x: -408.4     # -0.0616 * 10^3
+    v_y: 11.02    # -0.4017 * 10^3
     v_z: 0.0
 
   Earth:

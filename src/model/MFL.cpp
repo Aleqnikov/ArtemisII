@@ -1,33 +1,53 @@
 #include "MFL.h"
 
 #include "System.h"
+#include <algorithm> // Обязательно для std::lower_bound
+
 
 Vector3D MFL::get_n(System system, double t)
 {
-    // получить временной промежуток, и отинтерполировать и выдать вектор.
+    if (mfl.empty()) return Vector3D(0, 0, 0);
 
-
-
-    return Vector3D(-0.3953, 0.7837, 0.4791);
-
-    if (t >= mfl.back().first)
-        return mfl.back().second;
-
-    for (size_t i = 1; i < mfl.size(); ++i) {
-        if (t <= mfl[i].first) {
-            double t0 = mfl[i-1].first;
-            double t1 = mfl[i].first;
-            double alpha = (t - t0) / (t1 - t0);
-
-            const Vector3D& n0 = mfl[i-1].second;
-            const Vector3D& n1 = mfl[i].second;
-
-            // Линейная интерполяция + нормировка
-            Vector3D interp = n0 * (1.0 - alpha) + n1 * alpha;
-            double len = interp.mod();
-            return (len > 1e-12) ? interp / len : interp;
-        }
+    // --- 1. Обработка границ ---
+    if (t <= mfl.front().first) {
+        Vector3D v = system.X.r;
+        double len = v.mod();
+        return (len > 1e-12) ? v / len : v;
     }
 
-    return mfl.back().second;
+
+    if (t >= mfl.back().first) {
+        Vector3D v = mfl.back().second;
+        double len = v.mod();
+        return (len > 1e-12) ? v / len : v;
+    }
+
+    // --- 2. Бинарный поиск (O(log N)) ---
+    // Ищем первую точку, время которой НЕ меньше t
+    auto it = std::lower_bound(mfl.begin(), mfl.end(), t,
+        [](const std::pair<double, Vector3D>& a, double val) {
+            return a.first < val;
+        });
+
+    // Левая точка — это элемент перед найденным
+    auto it_prev = std::prev(it);
+
+    // --- 3. Линейная интерполяция ---
+    double t0 = it_prev->first;
+    double t1 = it->first;
+    double alpha = (t - t0) / (t1 - t0);
+
+    const Vector3D& n0 = it_prev->second;
+    const Vector3D& n1 = it->second;
+
+    // Считаем промежуточный вектор
+    Vector3D interp = n0 * (1.0 - alpha) + n1 * alpha;
+
+    // --- 4. Ручная нормировка ---
+    double len = interp.mod();
+    if (len > 1e-14) { // Проверка на нулевой вектор, чтобы не было деления на 0
+        return interp / len;
+    }
+
+    return interp;
 }

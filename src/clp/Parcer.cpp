@@ -71,6 +71,9 @@ SimulationConfig Parcer::parce_cfg(std::string path)
 }
 
 
+// Константа старта миссии Artemis II в Julian Date
+const double ARTEMIS_2_START_JD = 2461132.44111111;
+
 std::vector<std::pair<double, Vector3D>> Parcer::parce_mfl(std::string path)
 {
     std::ifstream file(path);
@@ -79,15 +82,44 @@ std::vector<std::pair<double, Vector3D>> Parcer::parce_mfl(std::string path)
 
     std::vector<std::pair<double, Vector3D>> result;
     std::string line;
+    bool data_started = false;
 
     while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') continue;
+        // 1. Ищем начало данных
+        if (!data_started) {
+            if (line.find("$$SOE") != std::string::npos) data_started = true;
+            continue;
+        }
+        // 2. Ищем конец данных
+        if (line.find("$$EOE") != std::string::npos) break;
 
-        std::istringstream ss(line);
-        double t, vx, vy, vz;
-        if (!(ss >> t >> vx >> vy >> vz)) continue;
+        // --- Читаем блок из 4-х строк для каждой точки времени ---
 
-        result.push_back({t, Vector3D(vx, vy, vz)});
+        // Строка 1: Julian Date (например, 2461132.582318345 = ...)
+        double jd;
+        std::istringstream ss_time(line);
+        if (!(ss_time >> jd)) continue;
+
+        // Переводим время: (Текущий JD - JD старта) * секунд в сутках
+        double t_relative = (jd - ARTEMIS_2_START_JD) * 86400.0;
+
+        // Строка 2: Позиция (X, Y, Z) - пропускаем
+        if (!std::getline(file, line)) break;
+
+        // Строка 3: Скорость (VX, VY, VZ) - это то, что нам нужно
+        if (!std::getline(file, line)) break;
+
+        double vx, vy, vz;
+        // Заменяем символы 'V', 'X', 'Y', 'Z', '=' на пробелы для простого парсинга
+        for (char &c : line) if (c == 'V' || c == 'X' || c == 'Y' || c == 'Z' || c == 'O' || c == '=') c = ' ';
+
+        std::istringstream ss_vel(line);
+        if (ss_vel >> vx >> vy >> vz) {
+            result.push_back({t_relative, Vector3D(vx, vy, vz)});
+        }
+
+        // Строка 4: Доп. данные (LT, RG, RR) - пропускаем
+        if (!std::getline(file, line)) break;
     }
 
     return result;
