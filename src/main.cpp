@@ -10,7 +10,7 @@
 
 const std::string ROCKET_CONFIG = "../cfg/rocket.yaml";
 const std::string SYSTEM_CONFIG = "../cfg/simulation.yaml";
-const std::string MFL_DATA = "../cfg/horizons_results.txt";
+const std::string MFL_DATA = "../cfg/origakafirsthorizons_results.txt";
 
 /**
  * О функции main

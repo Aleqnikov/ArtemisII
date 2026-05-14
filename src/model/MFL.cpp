@@ -8,9 +8,17 @@ Vector3D MFL::get_n(System system, double t)
 {
     if (mfl.empty()) return Vector3D(0, 0, 0);
 
+
+    if (t < 80)
+    {
+        Vector3D v = system.X.r;
+        double len = v.mod();
+        return (len > 1e-12) ? v / len : v;
+    }
+
     // --- 1. Обработка границ ---
     if (t <= mfl.front().first) {
-        Vector3D v = system.X.r;
+        Vector3D v = system.X.v;
         double len = v.mod();
         return (len > 1e-12) ? v / len : v;
     }
