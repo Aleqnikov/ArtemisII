@@ -55,6 +55,15 @@ public:
         return res; 
     }
 
+    Vector3D vecprod(const Vector3D &other) const
+	{
+	    return Vector3D(
+            data[1] * other.data[2] - data[2] * other.data[1],
+            data[2] * other.data[0] - data[0] * other.data[2],
+            data[0] * other.data[1] - data[1] * other.data[0]
+        );
+	}
+
     double mod() const
     {
         return std::pow(data[0]*data[0] + data[1]*data[1] + data[2]*data[2], 0.5);
@@ -65,6 +74,11 @@ public:
     	std::ostringstream res;
     	res << data[0] << " " << data[1] << " " << data[2] << " ";
     	return res.str();
+	}
+
+    Vector3D normalize()
+	{
+	    return Vector3D(data) / Vector3D(data).mod();
 	}
 
 };
