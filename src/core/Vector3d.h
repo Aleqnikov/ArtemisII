@@ -81,6 +81,13 @@ public:
 	    return Vector3D(data) / Vector3D(data).mod();
 	}
 
+    double dot(const Vector3D& other) const
+	{
+	    return data[0] * other.data[0]
+             + data[1] * other.data[1]
+             + data[2] * other.data[2];
+	}
+
 };
 
 

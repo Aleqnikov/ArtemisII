@@ -2,7 +2,9 @@
 #define ARTEMISII_PARCER_H
 
 #include "model/rocket/Rocket.h"
+#include "../model/MFL.h"
 
+#include "Control.h"
 /**
  * Утильный класс.
  */
@@ -29,7 +31,7 @@ class Parcer
 public:
     static Rocket parce_rocket(std::string path);
     static SimulationConfig parce_cfg(std::string path);
-    static std::vector<std::pair<double, Vector3D>> parce_mfl(std::string path);
+    static std::vector<std::pair<double, Control>> parce_mfl(const std::string& path);
 };
 
 

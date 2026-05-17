@@ -1,3 +1,6 @@
+#ifndef ARTEMISII_MOON_H
+#define ARTEMISII_MOON_H
+
 #include <array>
 #include <cmath>
 #include "Vector3d.h"
@@ -99,3 +102,5 @@ inline Vector3D moon_position(double t) {
 
     return {X_ecl, Y_ecl, Z_ecl};
 }
+
+#endif

@@ -14,7 +14,7 @@ std::string System::log() {
 
 
 System::System(SimulationConfig sim_cfg, Rocket rocket, std::string method_i,
-               std::vector<std::pair<double, Vector3D>> mfldata, double h)
+               std::vector<std::pair<double, Control>> mfldata, double h)
     : h(h),
       t_curr(0),
       t_end(sim_cfg.t_end),

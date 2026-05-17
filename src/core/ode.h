@@ -5,7 +5,7 @@
 #include "core/physics.h"
 #include "core/moon.h"
 
-Vector f(double t, Vector X, void* context) {
+inline Vector f(double t, Vector X, void* context) {
     System* system = static_cast<System*>(context);  
 
     Vector3D rM = moon_position(t);

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 
-void step_control(System& system, double& t_0)
+inline void step_control(System& system, double& t_0)
 {
     const double EPS = 1e-7;
     double original_h = system.h;

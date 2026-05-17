@@ -71,54 +71,80 @@ SimulationConfig Parcer::parce_cfg(std::string path)
 }
 
 
-// Константа старта миссии Artemis II в Julian Date
+// Константа Julian Date старта миссии Artemis II
 const double ARTEMIS_2_START_JD = 2461132.44111111;
 
-std::vector<std::pair<double, Vector3D>> Parcer::parce_mfl(std::string path)
+
+
+namespace launch {
+    const Vector3D up   ( 0.0233457021,  0.9494782251, -0.3129633815);  // эклиптика J2000
+    const Vector3D east (-0.9996462375,  0.0181802840, -0.0194133241);  // эклиптика J2000
+}
+
+std::vector<std::pair<double, Control>> Parcer::parce_mfl(const std::string& path)
 {
     std::ifstream file(path);
     if (!file.is_open())
         throw std::runtime_error("Cannot open MFL file: " + path);
 
-    std::vector<std::pair<double, Vector3D>> result;
+    const Vector3D north = launch::up.vecprod(launch::east);
+
+    constexpr double EPS   = 0.409092804222;
+    const double cos_e = std::cos(EPS);
+    const double sin_e = std::sin(EPS);
+
+    std::vector<std::pair<double, Control>> result;
     std::string line;
     bool data_started = false;
 
     while (std::getline(file, line)) {
-        // 1. Ищем начало данных
         if (!data_started) {
             if (line.find("$$SOE") != std::string::npos) data_started = true;
             continue;
         }
-        // 2. Ищем конец данных
         if (line.find("$$EOE") != std::string::npos) break;
 
-        // --- Читаем блок из 4-х строк для каждой точки времени ---
-
-        // Строка 1: Julian Date (например, 2461132.582318345 = ...)
+        // Строка 1: Julian Date
         double jd;
         std::istringstream ss_time(line);
         if (!(ss_time >> jd)) continue;
+        double t = (jd - ARTEMIS_2_START_JD) * 86400.0;
 
-        // Переводим время: (Текущий JD - JD старта) * секунд в сутках
-        double t_relative = (jd - ARTEMIS_2_START_JD) * 86400.0;
-
-        // Строка 2: Позиция (X, Y, Z) - пропускаем
+        // Строка 2: позиция (пропускаем)
         if (!std::getline(file, line)) break;
 
-        // Строка 3: Скорость (VX, VY, VZ) - это то, что нам нужно
+        // Строка 3: скорость VX VY VZ (ECI J2000, км/с)
         if (!std::getline(file, line)) break;
+        for (char& c : line)
+            if (c=='V'||c=='X'||c=='Y'||c=='Z'||c=='O'||c=='=') c = ' ';
 
         double vx, vy, vz;
-        // Заменяем символы 'V', 'X', 'Y', 'Z', '=' на пробелы для простого парсинга
-        for (char &c : line) if (c == 'V' || c == 'X' || c == 'Y' || c == 'Z' || c == 'O' || c == '=') c = ' ';
-
         std::istringstream ss_vel(line);
-        if (ss_vel >> vx >> vy >> vz) {
-            result.push_back({t_relative, Vector3D(vx, vy, vz)});
+        if (!(ss_vel >> vx >> vy >> vz)) {
+            std::getline(file, line);
+            continue;
         }
 
-        // Строка 4: Доп. данные (LT, RG, RR) - пропускаем
+        // ECI → эклиптика J2000, км/с → м/с
+        double vx_ecl = vx;
+        double vy_ecl =  vy * cos_e + vz * sin_e;
+        double vz_ecl = -vy * sin_e + vz * cos_e;
+        Vector3D vel(vx_ecl * 1e3, vy_ecl * 1e3, vz_ecl * 1e3);
+
+        // Проекция на локальный базис (эклиптика) → углы управления
+        Control ctrl;
+        double len = vel.mod();
+        if (len < 1e-12) {
+            ctrl = { M_PI / 2.0, 0.0 };
+        } else {
+            Vector3D nv = vel / len;
+            ctrl.theta = std::asin(std::clamp(nv.dot(launch::up),   -1.0, 1.0));
+            ctrl.psi   = std::atan2(nv.dot(launch::east), nv.dot(north));
+        }
+
+        result.push_back({ t, ctrl });
+
+        // Строка 4: LT RG RR (пропускаем)
         if (!std::getline(file, line)) break;
     }
 

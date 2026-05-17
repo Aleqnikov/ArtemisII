@@ -27,7 +27,9 @@ file(GLOB_RECURSE SOURCES "*.cpp" "*.h")
 list(FILTER SOURCES EXCLUDE REGEX ".*/_deps/.*")
 list(FILTER SOURCES EXCLUDE REGEX ".*/CMakeFiles/.*")
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} ${SOURCES}
+        clp/Control.h
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
         .
