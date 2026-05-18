@@ -24,7 +24,9 @@ public:
     MethodFn method;
     MFL mfl;
 
-    Vector3D n(double t) { return mfl.get_n(*this, t); }
+	Vector3D n(const Vector& current_X, double t) {
+		return mfl.get_n(*this, current_X, t);
+	}
 
     std::string log();
 

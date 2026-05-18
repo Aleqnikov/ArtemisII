@@ -16,9 +16,13 @@ inline Vector f(double t, Vector X, void* context) {
 
     auto [F_total, beta_total] = system->rocket.compute_thrust(t);
 
-    res.v = X.r * (-Consts::mu_E / std::pow(X.r.mod(), 3))
-          + (dr / std::pow(dr.mod(), 3) - rM / std::pow(rM.mod(), 3)) * Consts::mu_M
-          + system->n(t) * (F_total / X.m);
+
+	auto res2 = system->n(X, t);
+
+
+	res.v = X.r * (-Consts::mu_E / std::pow(X.r.mod(), 3))
+	  + (dr / std::pow(dr.mod(), 3) - rM / std::pow(rM.mod(), 3)) * Consts::mu_M
+	  + system->n(X, t) * (F_total / X.m); // Передаем актуальное X текущей стадии RK4
 
     res.m = -beta_total;
 

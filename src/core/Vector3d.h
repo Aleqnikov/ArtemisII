@@ -76,7 +76,7 @@ public:
     	return res.str();
 	}
 
-    Vector3D normalize()
+    Vector3D normalize() const
 	{
 	    return Vector3D(data) / Vector3D(data).mod();
 	}
