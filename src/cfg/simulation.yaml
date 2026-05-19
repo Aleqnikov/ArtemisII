@@ -2,7 +2,7 @@ simulation:
   metadata:
     name: "Modeling Artemis-II"
   parametrs:
-    t_end: 10000 # С запасом взял
+    t_end: 1000000 # С запасом взял
   start_parametrs:
     r_x: 148902.0
     r_y: 6350193.9

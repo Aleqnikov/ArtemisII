@@ -1,5 +1,5 @@
 #include "Simulation.h"
-
+#include <iostream>
 #include "pitch_control.h"
 
 void Simulation::Run()
@@ -8,7 +8,6 @@ void Simulation::Run()
 
 	while (t_0 < system.t_end)
 	{
-
 		if (t_0 > 90000)
 		{
 			t_0 += 0;

@@ -23,8 +23,8 @@ class MFL {
 private:
 	std::vector<std::pair<double, Control>> data;
 
-	ControlParameters params;  // Экземпляр наших параметров
-	Vector3D moon_plane_normal; // Вектор нормали к плоскости орбиты Луны
+	ControlParameters params;
+	Vector3D moon_plane_normal;
 
 public:
 	// Конструктор теперь будет сам высчитывать плоскость при создании
@@ -34,14 +34,14 @@ public:
 	Control get_control(const System& system, const Vector& X, double t);
 
 	static Vector3D angles_to_n(double theta, double psi,
+					const Vector3D& up,
+					const Vector3D& east,
+					const Vector3D& north);
+
+	static Control velocity_to_control(const Vector3D& vel,
 						 const Vector3D& up,
 						 const Vector3D& east,
 						 const Vector3D& north);
-
-	static Control velocity_to_control(const Vector3D& vel,
-							   const Vector3D& up,
-							   const Vector3D& east,
-							   const Vector3D& north);
 };
 
 #endif // ARTEMISII_MFL_H

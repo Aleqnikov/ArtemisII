@@ -142,7 +142,7 @@ std::vector<std::pair<double, Control>> Parcer::parce_mfl(const std::string& pat
             ctrl.psi   = std::atan2(nv.dot(launch::east), nv.dot(north));
         }
 
-        result.push_back({ t, ctrl });
+        result.push_back({ t - 1342, ctrl });
 
         // Строка 4: LT RG RR (пропускаем)
         if (!std::getline(file, line)) break;
