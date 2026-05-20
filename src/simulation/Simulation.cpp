@@ -8,9 +8,9 @@ void Simulation::Run()
 
 	while (t_0 < system.t_end)
 	{
-		if (t_0 > 90000)
+		if (system.X.r.mod() < 6371000)
 		{
-			t_0 += 0;
+			break;
 		}
 		step_control(system, t_0);
 		telemetry.log();
