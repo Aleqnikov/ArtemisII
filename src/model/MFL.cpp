@@ -19,36 +19,13 @@ namespace launch {
 const Vector3D TARGET_POS(-24442520.46, -14322896.36, -1284178.29);
 const Vector3D TARGET_VEL(-1844090.0, -3873750.0, -336390.0);
 
-MFL::MFL(const std::vector<std::pair<double, Control>>& mfldata) : data(mfldata) {
+MFL::MFL(const std::vector<std::pair<double, Vector3D>>& mfldata) : data(mfldata) {
     // Высчитываем нормаль к плоскости орбиты Луны через векторное произведение (h = r x v)
     Vector3D h = TARGET_POS.vecprod(TARGET_VEL);
     moon_plane_normal = h.normalize();
 }
 
-Vector3D MFL::angles_to_n(double theta, double psi,
-                          const Vector3D& up,
-                          const Vector3D& east,
-                          const Vector3D& north)
-{
-    return up    * std::sin(theta)
-         + east  * (std::cos(theta) * std::sin(psi))
-         + north * (std::cos(theta) * std::cos(psi));
-}
 
-Control MFL::velocity_to_control(const Vector3D& vel,
-                                 const Vector3D& up,
-                                 const Vector3D& east,
-                                 const Vector3D& north)
-{
-    double len = vel.mod();
-    if (len < 1e-12)
-        return Control{ M_PI / 2.0, 0.0 };
-
-    Vector3D nv = vel / len;
-    double theta = std::asin(std::clamp(nv.dot(up), -1.0, 1.0));
-    double psi   = std::atan2(nv.dot(east), nv.dot(north));
-    return Control{ theta, psi };
-}
 
 Control MFL::get_control(const System& system, const Vector& X, double t)
 {
@@ -60,6 +37,11 @@ Control MFL::get_control(const System& system, const Vector& X, double t)
 Vector3D MFL::get_n(const System& system, const Vector& X, double t)
 {
 
+
+	if (t >= 10859) {
+
+		Vector3D diff = data.front().second - X.v;
+	}
     // Защита от деления на ноль, если скорость вдруг нулевая
     Vector3D v_dir = (X.v.mod() > 1e-5) ? X.v.normalize() : X.r.normalize();
 

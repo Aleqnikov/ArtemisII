@@ -33,7 +33,7 @@ public:
     System (SimulationConfig sim_cfg,
         Rocket rocket,
         std::string method,
-        std::vector<std::pair<double, Control>> thottle_control,
+        std::vector<std::pair<double, Vector3D>> thottle_control,
         double h);
 };
 

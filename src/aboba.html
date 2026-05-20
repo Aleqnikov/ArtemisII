@@ -56,31 +56,6 @@
             text-align:right;
         }
         #stats span{ color:#a0e0b0; }
-        #earth-angle-display{
-            position:absolute; top:60px; left:20px;
-            font-size:10px; letter-spacing:1px;
-            line-height:1.8; color:rgba(200,216,240,0.5);
-        }
-        #earth-angle-display span{ color:#ffcc44; }
-        #launch-info{
-            position:absolute; top:130px; left:20px;
-            font-size:10px; letter-spacing:1px;
-            line-height:1.8; color:rgba(200,216,240,0.5);
-            background:rgba(3,6,15,0.7);
-            border:1px solid rgba(94,196,255,0.2);
-            padding:8px 12px;
-        }
-        #launch-info span{ color:#ff8844; }
-        #crosshair{
-            position:absolute; top:50%; left:50%;
-            transform:translate(-50%,-50%);
-            width:16px; height:16px; opacity:0.3;
-        }
-        #crosshair::before,#crosshair::after{
-            content:''; position:absolute; background:#5ec4ff;
-        }
-        #crosshair::before{ width:1px; height:100%; left:50%; top:0; }
-        #crosshair::after{ width:100%; height:1px; top:50%; left:0; }
         #dropzone{
             position:absolute; inset:0;
             display:flex; flex-direction:column;
@@ -95,12 +70,6 @@
         }
         #dz-title{ font-size:13px; letter-spacing:3px; color:#5ec4ff; margin-bottom:12px; }
         #dz-sub{ font-size:10px; letter-spacing:1px; color:rgba(200,216,240,0.4); line-height:2; }
-        #controls-hint{
-            position:absolute; bottom:110px; left:50%;
-            transform:translateX(-50%);
-            font-size:9px; letter-spacing:2px;
-            color:rgba(200,216,240,0.3);
-        }
         #timeline{
             position:absolute; bottom:20px; left:50%;
             transform:translateX(-50%);
@@ -154,25 +123,10 @@
         <div class="legend-item"><div class="legend-dot" style="background:#ffffff"></div>ROCKET</div>
         <div class="legend-item"><div class="legend-dot" style="background:#e0c060"></div>MOON</div>
         <div class="legend-item"><div class="legend-dot" style="background:#3060c0"></div>EARTH</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#ff8844; width:10px;height:10px;border-radius:50%;"></div>LAUNCH SITE LC-39B</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ff4444; border-radius:0;"></div>OWN Z (N. POLE)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#44ff44; border-radius:0;"></div>OWN X (VERNAL EQ.)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ff3333;"></div>REFERENCE</div>
     </div>
-
-    <div id="earth-angle-display">
-        <div>θ⊕: <span id="ea-angle">—</span> °</div>
-        <div>θ⊕: <span id="ea-rad">—</span> рад</div>
-    </div>
-
-    <div id="launch-info">
-        LC-39B KENNEDY SPACE CENTER<br>
-        LAT: <span>28.6270° N</span><br>
-        LON: <span>-80.6208° E</span><br>
-        GAST₀: <span>169.097°</span>
-    </div>
-
-    <div id="crosshair"></div>
 
     <div id="info">
         <div>LMB — вращение</div>
@@ -202,8 +156,6 @@
         </div>
     </div>
 
-    <div id="controls-hint">LMB DRAG · RMB PAN · SCROLL ZOOM</div>
-
     <div id="timeline" class="hidden">
         <div id="tl-label">T = <span id="tl-time">0</span> s</div>
         <div class="tl-row">
@@ -221,25 +173,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 
-    /* ══════════════════════════════════════════════════════════════
-       КОНСТАНТЫ
-    ══════════════════════════════════════════════════════════════ */
-
     const EARTH_RADIUS = 6371000;
-    const EARTH_TILT   = 23.4392811 * Math.PI / 180.0;
+    const GAST0        = 169.096725 * Math.PI / 180;
+    const EPS          = 23.439291  * Math.PI / 180;
 
-    // LC-39B Kennedy Space Center
-    const LC39B_LAT  = 28.6270 * Math.PI / 180;
-    const LC39B_LON  = -80.6208 * Math.PI / 180;
-    // GAST на момент старта Artemis II = 169.097°
-    const GAST0      = 169.096725 * Math.PI / 180;
-
-    // Наклон эклиптики (для перевода ECI→эклиптика если нужно)
-    const EPS = 23.439291 * Math.PI / 180;
-
-    /* ══════════════════════════════════════════════════════════════
-       СЦЕНА
-    ══════════════════════════════════════════════════════════════ */
+    const EARTH_AXIS_THREE = new THREE.Vector3(0, Math.cos(EPS), -Math.sin(EPS)).normalize();
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x03060f);
@@ -252,43 +190,21 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    /* ── Свет ── */
     scene.add(new THREE.AmbientLight(0x223355, 1.5));
     const sun = new THREE.DirectionalLight(0xfff2dd, 2.5);
     sun.position.set(1.5e8, 5e7, 2e7);
     scene.add(sun);
 
-    /* ══════════════════════════════════════════════════════════════
-       ЗЕМЛЯ С РЕАЛЬНЫМИ КОНТИНЕНТАМИ
-
-       Система координат:
-       - Данные в ЭКЛИПТИЧЕСКОЙ системе (X,Y,Z_ecl)
-       - Three.js: three_x = ecl_x, three_y = ecl_z, three_z = -ecl_y
-       - Земля вращается по angle_earth (GAST) вокруг своей оси
-
-       Для отрисовки Земли:
-       - Ось вращения Земли в ECI = Z_ECI
-       - Z_ECI в эклиптике = (0, sin(eps), cos(eps))
-       - В Three.js: (0, cos(eps), -sin(eps))  [т.к. three_y=ecl_z, three_z=-ecl_y]
-    ══════════════════════════════════════════════════════════════ */
-
-    // Ось вращения Земли в Three.js координатах (из эклиптики)
-    // Z_ECI в эклиптике = (0, sin(EPS), cos(EPS))
-    // → Three: x=0, y=cos(EPS), z=-sin(EPS)
-    const EARTH_AXIS_THREE = new THREE.Vector3(0, Math.cos(EPS), -Math.sin(EPS)).normalize();
-
-    // Группа для вращения Земли
+    /* ══ Земля ══ */
     const earthGroup = new THREE.Group();
     scene.add(earthGroup);
 
-    // Создаём текстуру Земли с континентами
     function makeEarthTexture() {
         const W = 2048, H = 1024;
         const canvas = document.createElement('canvas');
         canvas.width = W; canvas.height = H;
         const ctx = canvas.getContext('2d');
 
-        // Океан
         const oceanGrad = ctx.createLinearGradient(0, 0, 0, H);
         oceanGrad.addColorStop(0,   '#040f2a');
         oceanGrad.addColorStop(0.15,'#061a45');
@@ -298,12 +214,9 @@
         ctx.fillStyle = oceanGrad;
         ctx.fillRect(0, 0, W, H);
 
-        // Функция: (lat, lon) в градусах → (px, py) на текстуре
         function ll2px(lat, lon) {
             return [(lon + 180) / 360 * W, (90 - lat) / 180 * H];
         }
-
-        // Рисуем континент
         function drawContinent(points, color) {
             ctx.beginPath();
             const [sx, sy] = ll2px(points[0][0], points[0][1]);
@@ -317,91 +230,20 @@
             ctx.fill();
         }
 
-        const landColor   = '#1a4a1a';
-        const landColor2  = '#153d15';
+        const landColor  = '#1a4a1a';
+        const landColor2 = '#153d15';
 
-        // ── СЕВЕРНАЯ АМЕРИКА ──
-        drawContinent([
-            [70,-140],[70,-95],[60,-85],[55,-75],[47,-53],[44,-53],[42,-70],
-            [35,-75],[25,-80],[24,-81],[25,-90],[20,-87],[15,-83],[8,-77],
-            [8,-80],[10,-85],[15,-92],[20,-105],[20,-110],[25,-110],[30,-115],
-            [32,-117],[40,-124],[48,-124],[54,-130],[60,-140],[65,-140],[70,-140]
-        ], landColor);
+        drawContinent([[70,-140],[70,-95],[60,-85],[55,-75],[47,-53],[44,-53],[42,-70],[35,-75],[25,-80],[24,-81],[25,-90],[20,-87],[15,-83],[8,-77],[8,-80],[10,-85],[15,-92],[20,-105],[20,-110],[25,-110],[30,-115],[32,-117],[40,-124],[48,-124],[54,-130],[60,-140],[65,-140],[70,-140]], landColor);
+        drawContinent([[30.5,-87],[30,-84],[28,-81],[25,-80],[24,-81],[25,-83],[27,-82],[28,-81.5],[29,-80.5],[30,-80],[31,-81],[30.5,-87]], '#2a6a1a');
+        drawContinent([[83,-45],[76,-15],[70,-22],[65,-38],[60,-46],[65,-55],[70,-55],[76,-65],[83,-45]], '#2a5a2a');
+        drawContinent([[12,-72],[10,-62],[8,-60],[5,-52],[0,-50],[-5,-35],[-10,-37],[-15,-39],[-20,-40],[-25,-48],[-30,-50],[-35,-57],[-40,-62],[-45,-65],[-50,-68],[-55,-67],[-56,-68],[-54,-65],[-50,-70],[-45,-72],[-40,-73],[-35,-72],[-30,-71],[-20,-70],[-15,-75],[-10,-78],[-5,-80],[0,-80],[5,-77],[8,-77],[10,-73],[12,-72]], landColor);
+        drawContinent([[71,28],[70,20],[65,14],[60,5],[55,8],[52,5],[51,3],[49,0],[44,-2],[37,-9],[36,-6],[36,0],[37,10],[40,18],[42,20],[44,15],[45,13],[46,14],[48,17],[50,15],[54,10],[57,8],[60,5],[64,16],[68,18],[71,28]], landColor);
+        drawContinent([[71,28],[70,30],[68,28],[65,14],[62,5],[58,5],[57,8],[60,5],[64,16],[68,18],[71,28]], landColor);
+        drawContinent([[37,10],[37,25],[30,32],[25,37],[15,42],[10,45],[5,42],[0,42],[-5,40],[-10,38],[-15,35],[-20,35],[-25,33],[-30,30],[-35,27],[-34,18],[-30,17],[-25,15],[-20,14],[-15,12],[-10,15],[-5,10],[0,9],[5,3],[5,-5],[10,-15],[15,-17],[20,-17],[25,-15],[30,-10],[35,-5],[37,10]], landColor);
+        drawContinent([[72,140],[70,100],[68,80],[65,60],[60,55],[55,50],[50,55],[45,60],[40,55],[35,50],[30,48],[25,50],[22,60],[18,57],[15,50],[12,45],[8,42],[5,40],[0,42],[5,42],[10,45],[15,42],[25,37],[30,32],[37,25],[42,28],[45,35],[42,45],[38,48],[35,55],[38,60],[40,65],[42,70],[38,75],[35,77],[28,90],[22,92],[20,93],[15,80],[10,78],[8,77],[8,80],[20,87],[25,90],[20,93],[15,100],[10,100],[5,105],[0,105],[-5,105],[-8,115],[-5,120],[0,110],[5,100],[10,100],[15,105],[20,110],[25,115],[30,120],[38,120],[45,135],[50,140],[55,135],[60,140],[65,140],[70,155],[72,160],[72,140]], landColor);
+        drawContinent([[-15,130],[-12,136],[-12,142],[-15,145],[-18,148],[-22,150],[-27,153],[-30,153],[-35,150],[-38,145],[-38,140],[-35,138],[-32,133],[-30,115],[-22,114],[-18,122],[-15,130]], landColor2);
+        drawContinent([[-70,-180],[-70,180],[-90,180],[-90,-180],[-70,-180]], '#2a4a3a');
 
-        // Флорида отдельно (важна — там Канаверал!)
-        drawContinent([
-            [31,-85],[29,-81],[25,-80],[24,-82],[25,-85],[28,-85],[30,-85],[31,-85]
-        ], '#2a6a1a');
-
-        // Большой полуостров Флорида
-        drawContinent([
-            [30.5,-87],[30,-84],[28,-81],[25,-80],[24,-81],[25,-83],[27,-82],
-            [28,-81.5],[29,-80.5],[30,-80],[31,-81],[30.5,-87]
-        ], '#2a6a1a');
-
-        // ── ГРЕНЛАНДИЯ ──
-        drawContinent([
-            [83,-45],[76,-15],[70,-22],[65,-38],[60,-46],[65,-55],[70,-55],[76,-65],[83,-45]
-        ], '#2a5a2a');
-
-        // ── ЮЖНАЯ АМЕРИКА ──
-        drawContinent([
-            [12,-72],[10,-62],[8,-60],[5,-52],[0,-50],[-5,-35],[-10,-37],
-            [-15,-39],[-20,-40],[-25,-48],[-30,-50],[-35,-57],[-40,-62],
-            [-45,-65],[-50,-68],[-55,-67],[-56,-68],[-54,-65],[-50,-70],
-            [-45,-72],[-40,-73],[-35,-72],[-30,-71],[-20,-70],[-15,-75],
-            [-10,-78],[-5,-80],[0,-80],[5,-77],[8,-77],[10,-73],[12,-72]
-        ], landColor);
-
-        // ── ЕВРОПА ──
-        drawContinent([
-            [71,28],[70,20],[65,14],[60,5],[55,8],[52,5],[51,3],[49,0],
-            [44,-2],[37,-9],[36,-6],[36,0],[37,10],[40,18],[42,20],[44,15],
-            [45,13],[46,14],[48,17],[50,15],[54,10],[57,8],[60,5],[64,16],
-            [68,18],[71,28]
-        ], landColor);
-
-        // Скандинавия
-        drawContinent([
-            [71,28],[70,30],[68,28],[65,14],[62,5],[58,5],[57,8],[60,5],
-            [64,16],[68,18],[71,28]
-        ], landColor);
-
-        // ── АФРИКА ──
-        drawContinent([
-            [37,10],[37,25],[30,32],[25,37],[15,42],[10,45],[5,42],[0,42],
-            [-5,40],[-10,38],[-15,35],[-20,35],[-25,33],[-30,30],[-35,27],
-            [-34,18],[-30,17],[-25,15],[-20,14],[-15,12],[-10,15],[-5,10],
-            [0,9],[5,3],[5,-5],[10,-15],[15,-17],[20,-17],[25,-15],[30,-10],
-            [35,-5],[37,10]
-        ], landColor);
-
-        // ── АЗИЯ ──
-        drawContinent([
-            [72,140],[70,100],[68,80],[65,60],[60,55],[55,50],[50,55],
-            [45,60],[40,55],[35,50],[30,48],[25,50],[22,60],[18,57],[15,50],
-            [12,45],[8,42],[5,40],[0,42],[5,42],[10,45],[15,42],[25,37],[30,32],
-            [37,25],[42,28],[45,35],[42,45],[38,48],[35,55],[38,60],[40,65],
-            [42,70],[38,75],[35,77],[28,90],[22,92],[20,93],[15,80],[10,78],
-            [8,77],[8,80],[20,87],[25,90],[20,93],[15,100],[10,100],[5,105],
-            [0,105],[-5,105],[-8,115],[-5,120],[0,110],[5,100],[10,100],
-            [15,105],[20,110],[25,115],[30,120],[38,120],[45,135],[50,140],
-            [55,135],[60,140],[65,140],[70,155],[72,160],[72,140]
-        ], landColor);
-
-        // ── АВСТРАЛИЯ ──
-        drawContinent([
-            [-15,130],[-12,136],[-12,142],[-15,145],[-18,148],[-22,150],
-            [-27,153],[-30,153],[-35,150],[-38,145],[-38,140],[-35,138],
-            [-32,133],[-30,115],[-22,114],[-18,122],[-15,130]
-        ], landColor2);
-
-        // ── АНТАРКТИДА ──
-        drawContinent([
-            [-70,-180],[-70,180],[-90,180],[-90,-180],[-70,-180]
-        ], '#2a4a3a');
-
-        // Сетка меридианов и параллелей
         ctx.strokeStyle = 'rgba(94,196,255,0.12)';
         ctx.lineWidth = 1;
         for(let lat = -80; lat <= 80; lat += 10){
@@ -412,240 +254,72 @@
             const x = (lon + 180) / 360 * W;
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
         }
-
-        // Экватор ярче
         ctx.strokeStyle = 'rgba(94,196,255,0.35)';
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
-
-        // Нулевой меридиан
         ctx.strokeStyle = 'rgba(255,200,60,0.35)';
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
 
-        // ★ МАРКЕР LC-39B KENNEDY SPACE CENTER ★
-        // lat=28.627°, lon=-80.6208°
-        const [markerX, markerY] = ll2px(28.627, -80.6208);
-
-        // Крест + круг
-        ctx.strokeStyle = '#ff8844';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(markerX, markerY, 10, 0, Math.PI*2);
-        ctx.stroke();
-
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(markerX-18, markerY); ctx.lineTo(markerX+18, markerY); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(markerX, markerY-18); ctx.lineTo(markerX, markerY+18); ctx.stroke();
-
-        // Подпись
-        ctx.fillStyle = '#ff8844';
-        ctx.font = 'bold 22px monospace';
-        ctx.fillText('LC-39B', markerX + 14, markerY - 8);
-
-        // Флорида — надпись
-        ctx.fillStyle = 'rgba(255,200,100,0.6)';
-        ctx.font = '18px monospace';
-        ctx.fillText('FLORIDA', markerX - 30, markerY + 35);
-
         return new THREE.CanvasTexture(canvas);
     }
 
-    const earthTex = makeEarthTexture();
-
-    const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
-    const earthMat = new THREE.MeshPhongMaterial({
-        map: earthTex,
-        emissive: 0x020810,
-        shininess: 8
-    });
-    const earthMesh = new THREE.Mesh(earthGeo, earthMat);
+    const earthMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(EARTH_RADIUS, 64, 64),
+        new THREE.MeshPhongMaterial({ map: makeEarthTexture(), emissive: 0x020810, shininess: 8 })
+    );
     earthGroup.add(earthMesh);
-
-    // Атмосфера
     earthGroup.add(new THREE.Mesh(
         new THREE.SphereGeometry(EARTH_RADIUS * 1.025, 32, 32),
         new THREE.MeshBasicMaterial({ color:0x5ec4ff, transparent:true, opacity:0.06, side:THREE.BackSide })
     ));
 
-    /* ── Маркер LC-39B в 3D (сфера + линия) ── */
-    // Позиция LC-39B в ECEF (при GAST=0, т.е. в теле Земли)
-    // Нужно нарисовать его на поверхности земного меша
-    // В теле Земли (до вращения): lon=-80.62°, lat=28.627°
-    function latLonToECEF(lat, lon) {
-        return new THREE.Vector3(
-            EARTH_RADIUS * Math.cos(lat) * Math.cos(lon),
-            EARTH_RADIUS * Math.cos(lat) * Math.sin(lon),
-            EARTH_RADIUS * Math.sin(lat)
-        );
-    }
-
-    // В Three.js earthMesh — сфера с осью Y вверх (THREE стандарт)
-    // При нулевом вращении: три_x=ECEF_x, три_y=ECEF_z, три_z=-ECEF_y
-    // Но поскольку earthGroup крутится как реальная Земля,
-    // маркер нужно добавить в earthGroup В ECEF координатах:
-    // три_x=ECEF_x, три_y=ECEF_z, три_z=-ECEF_y — это базовая эклиптика→three конвертация
-    // НО earthMesh внутри earthGroup, и earthGroup.setRotationFromAxisAngle(EARTH_AXIS_THREE, angle)
-    // Так что маркер в earthGroup нужно ставить в "локальных" Земля-координатах
-
-    // Локальные ECEF → Three LOCAL (до применения вращения earthGroup):
-    // Земля в своей системе: ось вращения = локальный Y
-    // Но нам нужно правильно. Разберём:
-    // earthGroup вращается вокруг EARTH_AXIS_THREE.
-    // Земной меш при нулевом вращении ориентирован так, что Three Y = ???
-    // Нам нужно чтобы маркер LC-39B совпадал с текстурой.
-    // Текстура: lon=0 → центр текстуры (U=0.5), lat=90° → верх (V=0)
-    // Three.SphereGeometry по умолчанию: +Y = северный полюс, lon=0 → +X
-
-    // Итак в локальной системе earthMesh:
-    // +Y = северный полюс (Z_ECI)
-    // +X = lon=0, lat=0 (точка весеннего равноденствия при GAST=0)
-    // В ECEF: x=cos(lat)*cos(lon), y=cos(lat)*sin(lon), z=sin(lat)
-    // В Three LOCAL earthMesh: three_x=ECEF_x, three_y=ECEF_z, three_z=-ECEF_y
-
-    const LC39B_ECEF = latLonToECEF(LC39B_LAT, LC39B_LON);
-    const markerLocal = new THREE.Vector3(
-        LC39B_ECEF.x,
-        LC39B_ECEF.z,    // ECEF_z → Three_y (north pole up)
-        -LC39B_ECEF.y     // ECEF_y → Three_z (inverted)
-    );
-
-    // Сфера-маркер
-    const markerSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(EARTH_RADIUS * 0.012, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0xff8844 })
-    );
-    markerSphere.position.copy(markerLocal);
-    earthMesh.add(markerSphere);
-
-    // Линия от поверхности вверх
-    const markerLineGeo = new THREE.BufferGeometry().setFromPoints([
-        markerLocal.clone(),
-        markerLocal.clone().multiplyScalar(1.15)
-    ]);
-    const markerLine = new THREE.Line(markerLineGeo, new THREE.LineBasicMaterial({ color:0xff8844 }));
-    earthMesh.add(markerLine);
-
-    // Пульсирующее кольцо вокруг маркера
-    const ringGeo = new THREE.RingGeometry(
-        EARTH_RADIUS * 0.015, EARTH_RADIUS * 0.022, 32
-    );
-    const ringMat = new THREE.MeshBasicMaterial({
-        color:0xff8844, transparent:true, opacity:0.6, side:THREE.DoubleSide
-    });
-    const markerRing = new THREE.Mesh(ringGeo, ringMat);
-    markerRing.position.copy(markerLocal.clone().multiplyScalar(1.001));
-    // Кольцо должно лежать в плоскости перпендикулярной радиусу
-    markerRing.lookAt(markerLocal.clone().multiplyScalar(2));
-    earthMesh.add(markerRing);
-
-    /* ══════════════════════════════════════════════════════════════
-       Настройка начального вращения Земли
-
-       Задача: при t=0 (angle_earth=GAST0) LC-39B должен быть
-       в правильном положении в мировых координатах.
-
-       Земля вращается: earthGroup.setRotationFromAxisAngle(EARTH_AXIS_THREE, angle)
-       При angle=0:
-         - Three LOCAL +X → мировой Three +X (= ECI X, весеннее равноденствие)
-         - Земной меш: lon=0, lat=0 смотрит в +X
-       При angle=GAST:
-         - lon=0, lat=0 смотрит в направлении GAST от ECI X
-
-       Но наша сцена в ЭКЛИПТИЧЕСКОЙ системе, не ECI!
-       ECI X → Ecliptic X (они совпадают, ось X одна)
-       ECI Y → Ecliptic: (0, cos(EPS), sin(EPS))... нет.
-
-       Фактически ось вращения Земли в Three:
-       EARTH_AXIS_THREE = (0, cos(EPS), -sin(EPS))
-
-       Начальная ориентация earthMesh (angle=0):
-       Three LOCAL +Y = EARTH_AXIS_THREE (северный полюс)
-       Three LOCAL +X = вдоль эклиптической плоскости, к ECI X
-
-       При GAST=0: LC-39B в ECI находится под углом lon=-80.62° от ECI_X
-       При GAST=GAST0=169.097°: LC-39B повернулся ещё на GAST0
-       Итого угол LC-39B от ECI_X = lon + GAST0 = -80.62° + 169.097° = 88.477°
-
-       Это то, что мы и хотим при подаче angle_earth=GAST0 в setRotationFromAxisAngle.
-    ══════════════════════════════════════════════════════════════ */
-
-    // Начальная ориентация earthMesh нужна такая, чтобы при angle=0
-    // lon=0 смотрел вдоль ECI X (= экл. X = Three X)
-    // Three.SphereGeometry по умолчанию именно так и делает.
-    // Но нам нужно скорректировать: earthMesh нужно повернуть так,
-    // чтобы его локальный Y совпал с EARTH_AXIS_THREE при нулевом вращении earthGroup.
-    // Поскольку earthGroup поворачивается вокруг EARTH_AXIS_THREE,
-    // нам нужно начальную ориентацию earthMesh выровнять так,
-    // чтобы его северный полюс (Three +Y в меше) = EARTH_AXIS_THREE в мировых координатах
-    // при нулевом вращении earthGroup.
-
-    // Выровняем earthMesh: +Y меша → EARTH_AXIS_THREE мира
-    // Но earthGroup это родитель, при нулевом вращении earthGroup = Identity
-    // Так что earthMesh.quaternion = поворот из (0,1,0) в EARTH_AXIS_THREE
     {
         const fromUp = new THREE.Vector3(0, 1, 0);
-        const toUp   = EARTH_AXIS_THREE.clone();
-        earthMesh.quaternion.setFromUnitVectors(fromUp, toUp);
-        // То же для маркеров (они дети earthMesh, так что автоматически)
+        earthMesh.quaternion.setFromUnitVectors(fromUp, EARTH_AXIS_THREE.clone());
     }
 
     let earthSpinEnabled = true;
     function setEarthRotation(angle) {
-        // Поворот earthGroup вокруг EARTH_AXIS_THREE на угол angle (GAST)
         earthGroup.setRotationFromAxisAngle(EARTH_AXIS_THREE, angle);
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       ОСИ
-    ══════════════════════════════════════════════════════════════ */
-
-    let axisGroup = new THREE.Group();
+    /* ══ Оси ══ */
+    const axisGroup = new THREE.Group();
     scene.add(axisGroup);
 
     function buildAxes(){
         while(axisGroup.children.length) axisGroup.remove(axisGroup.children[0]);
         const L = EARTH_RADIUS * 2.2;
-
-        // Ось Z_ECI (ось вращения Земли) в Three: EARTH_AXIS_THREE
-        const axZ0 = EARTH_AXIS_THREE.clone().multiplyScalar(-L);
-        const axZ1 = EARTH_AXIS_THREE.clone().multiplyScalar(L);
         axisGroup.add(new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([axZ0, axZ1]),
-            new THREE.LineBasicMaterial({ color:0xff4444 })
+            new THREE.BufferGeometry().setFromPoints([
+                EARTH_AXIS_THREE.clone().multiplyScalar(-L),
+                EARTH_AXIS_THREE.clone().multiplyScalar(L)
+            ]),
+            new THREE.LineBasicMaterial({ color:0xff4444, depthTest:false })
         ));
-
-        // Конус северного полюса
         const coneN = new THREE.Mesh(
             new THREE.ConeGeometry(EARTH_RADIUS*0.08, EARTH_RADIUS*0.3, 16),
             new THREE.MeshBasicMaterial({ color:0xff4444 })
         );
-        coneN.position.copy(axZ1);
+        coneN.position.copy(EARTH_AXIS_THREE.clone().multiplyScalar(L));
         coneN.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), EARTH_AXIS_THREE.clone().normalize());
         axisGroup.add(coneN);
-
-        // Ось X (Three X = ECI X = Ecliptic X)
         axisGroup.add(new THREE.Line(
             new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(L,0,0)]),
-            new THREE.LineBasicMaterial({ color:0x44ff44 })
+            new THREE.LineBasicMaterial({ color:0x44ff44, depthTest:false })
         ));
-
-        // Экваториальная плоскость — кольцо перпендикулярное оси вращения Земли
-        const ringGeoEq = new THREE.RingGeometry(EARTH_RADIUS*1.1, EARTH_RADIUS*1.15, 64);
-        const ringEq = new THREE.Mesh(ringGeoEq, new THREE.MeshBasicMaterial({
-            color:0x5ec4ff, transparent:true, opacity:0.12, side:THREE.DoubleSide
-        }));
-        // Кольцо в плоскости перп. EARTH_AXIS_THREE
+        const ringEq = new THREE.Mesh(
+            new THREE.RingGeometry(EARTH_RADIUS*1.1, EARTH_RADIUS*1.15, 64),
+            new THREE.MeshBasicMaterial({ color:0x5ec4ff, transparent:true, opacity:0.12, side:THREE.DoubleSide })
+        );
         ringEq.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), EARTH_AXIS_THREE);
         axisGroup.add(ringEq);
     }
     buildAxes();
     let showAxis = true;
 
-    /* ══════════════════════════════════════════════════════════════
-       ДАННЫЕ И СЦЕНА
-    ══════════════════════════════════════════════════════════════ */
-
+    /* ══ Данные ══ */
     let data = [], rocketLine = null, moonLine = null;
     let rocketDot = null, moonSphere = null;
     let currentIdx = 0, playing = false, playSpeed = 1;
@@ -665,9 +339,15 @@
         return result;
     }
 
-    // Эклиптика → Three.js
-    // ecl_x→three_x, ecl_y→three_z (минус), ecl_z→three_y
     function eclToThree(x, y, z){ return new THREE.Vector3(x, z, -y); }
+
+    /* Материал для линий — depthTest:false, всегда поверх всего */
+    function lineMat(color, opacity){
+        return new THREE.LineBasicMaterial({
+            color, transparent: opacity < 1, opacity: opacity||1,
+            depthTest: false, depthWrite: false
+        });
+    }
 
     function buildScene(){
         [rocketLine, moonLine, rocketDot, moonSphere].forEach(o=>{ if(o) scene.remove(o); });
@@ -678,20 +358,23 @@
 
         rocketLine = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(rPts),
-            new THREE.LineBasicMaterial({ color:0x5ec4ff })
+            lineMat(0x5ec4ff)
         );
+        rocketLine.renderOrder = 999;
         scene.add(rocketLine);
 
         moonLine = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(mPts),
-            new THREE.LineBasicMaterial({ color:0xa08020, transparent:true, opacity:0.4 })
+            lineMat(0xa08020, 0.4)
         );
+        moonLine.renderOrder = 998;
         scene.add(moonLine);
 
         rocketDot = new THREE.Mesh(
             new THREE.SphereGeometry(1.8e5, 16, 16),
-            new THREE.MeshBasicMaterial({ color:0xffffff })
+            new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false })
         );
+        rocketDot.renderOrder = 1000;
         scene.add(rocketDot);
 
         moonSphere = new THREE.Mesh(
@@ -700,16 +383,16 @@
         );
         scene.add(moonSphere);
 
+        const moonDist = mPts.length > 0 ? mPts[0].length() : 4e8;
+        camera.near = 1e3;
+        camera.far = Math.max(moonDist * 3, 5e8);
+        camera.updateProjectionMatrix();
+
         let maxR = 0;
         rPts.forEach(p => { maxR = Math.max(maxR, p.length()); });
-        // Луна до ~400 000 км — far должен быть как минимум 5e8
-        const moonDist = mPts.length > 0 ? mPts[0].length() : 4e8;
-        const farPlane = Math.max(moonDist * 3, 5e8);
         camera.position.set(0, maxR*0.6, maxR*1.2);
         controls.target.set(0,0,0);
-        camera.near = 1e3;
-        camera.far = farPlane;
-        camera.updateProjectionMatrix();
+        controls.spherical.setFromVector3(camera.position.clone().sub(controls.target));
 
         setFrame(0);
         document.getElementById('timeline').classList.remove('hidden');
@@ -720,36 +403,21 @@
     function setFrame(idx){
         currentIdx = Math.max(0, Math.min(data.length-1, idx));
         const d = data[currentIdx];
-
         const rPos = eclToThree(d.rx, d.ry, d.rz);
         const mPos = eclToThree(d.mx, d.my, d.mz);
-
         if(rocketDot) rocketDot.position.copy(rPos);
         if(moonSphere) moonSphere.position.copy(mPos);
-
-        // Вращение Земли по GAST из телеметрии
         if(earthSpinEnabled) setEarthRotation(d.ea);
-
-        // Обновляем следы
         if(rocketLine) rocketLine.geometry.setFromPoints(
             data.slice(0, currentIdx+1).map(x => eclToThree(x.rx, x.ry, x.rz))
         );
         if(moonLine) moonLine.geometry.setFromPoints(
             data.slice(0, currentIdx+1).map(x => eclToThree(x.mx, x.my, x.mz))
         );
-
         if(followRocket && rocketDot) controls.target.copy(rocketDot.position);
-
         document.getElementById('tl-slider').value = currentIdx;
         document.getElementById('tl-time').textContent = d.t.toFixed(1);
-        const deg = (d.ea * 180 / Math.PI) % 360;
-        document.getElementById('ea-angle').textContent = deg.toFixed(3);
-        document.getElementById('ea-rad').textContent   = d.ea.toFixed(6);
         updateStats();
-
-        // Пульсация кольца маркера
-        const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.003);
-        ringMat.opacity = pulse * 0.7;
     }
 
     function updateStats(){
@@ -763,16 +431,12 @@
         document.getElementById('s-m').textContent = d.m.toFixed(0);
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       REFERENCE
-    ══════════════════════════════════════════════════════════════ */
-
+    /* ══ Reference ══ */
     function loadReferenceFile(file){
         const reader = new FileReader();
         reader.onload = ev => {
-            const lines = ev.target.result.trim().split('\n');
             const pts = [];
-            for(const line of lines){
+            for(const line of ev.target.result.trim().split('\n')){
                 const p = line.trim().split(/[\s,;]+/).map(Number);
                 if(p.length < 4 || p.some(isNaN)) continue;
                 pts.push(eclToThree(p[1], p[2], p[3]));
@@ -781,21 +445,21 @@
             if(refLine) scene.remove(refLine);
             refLine = new THREE.Line(
                 new THREE.BufferGeometry().setFromPoints(pts),
-                new THREE.LineBasicMaterial({ color:0xff3333 })
+                lineMat(0xff3333)
             );
+            refLine.renderOrder = 997;
             scene.add(refLine);
         };
         reader.readAsText(file);
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       ОРБИТАЛЬНАЯ КАМЕРА
-    ══════════════════════════════════════════════════════════════ */
-
+    /* ══ Камера ══ */
     const controls = (()=>{
         const state = {
-            target: new THREE.Vector3(), spherical: new THREE.Spherical(),
-            panOffset: new THREE.Vector3(), mouse:{x:0,y:0}, button:-1, dragging:false
+            target: new THREE.Vector3(),
+            spherical: new THREE.Spherical(),
+            panOffset: new THREE.Vector3(),
+            mouse:{x:0,y:0}, button:-1, dragging:false
         };
         state.spherical.setFromVector3(camera.position);
         const el = renderer.domElement;
@@ -822,17 +486,15 @@
         }, {passive:false});
         el.addEventListener('contextmenu', e=>e.preventDefault());
         function update(){
-            state.target.add(state.panOffset); state.panOffset.multiplyScalar(0);
+            state.target.add(state.panOffset);
+            state.panOffset.multiplyScalar(0);
             camera.position.copy(state.target).add(new THREE.Vector3().setFromSpherical(state.spherical));
             camera.lookAt(state.target);
         }
         return { update, target:state.target, spherical:state.spherical };
     })();
 
-    /* ══════════════════════════════════════════════════════════════
-       UI
-    ══════════════════════════════════════════════════════════════ */
-
+    /* ══ UI ══ */
     document.getElementById('play-btn').addEventListener('click', ()=>{
         playing=!playing; document.getElementById('play-btn').textContent=playing?'⏸ PAUSE':'▶ PLAY';
     });
@@ -856,38 +518,31 @@
         if(e.code==='KeyE') document.getElementById('earth-btn').click();
         if(e.code==='KeyR'){ controls.target.set(0,0,0); camera.position.set(0,0,2e7); controls.spherical.setFromVector3(camera.position); }
     });
-
-    document.getElementById('file-input').addEventListener('change', e=>{ const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>{ data=parseData(ev.target.result); buildScene(); }; r.readAsText(f); } });
+    document.getElementById('file-input').addEventListener('change', e=>{
+        const f=e.target.files[0]; if(!f) return;
+        const r=new FileReader(); r.onload=ev=>{ data=parseData(ev.target.result); buildScene(); }; r.readAsText(f);
+    });
     document.body.addEventListener('dragover', e=>e.preventDefault());
-    document.body.addEventListener('drop', e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>{ data=parseData(ev.target.result); buildScene(); }; r.readAsText(f); } });
-    document.getElementById('ref-file-input').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) loadReferenceFile(f); });
+    document.body.addEventListener('drop', e=>{
+        e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f) return;
+        const r=new FileReader(); r.onload=ev=>{ data=parseData(ev.target.result); buildScene(); }; r.readAsText(f);
+    });
+    document.getElementById('ref-file-input').addEventListener('change', e=>{
+        const f=e.target.files[0]; if(f) loadReferenceFile(f);
+    });
 
-    /* ══════════════════════════════════════════════════════════════
-       РЕНДЕР
-    ══════════════════════════════════════════════════════════════ */
-
-    // Показываем Землю сразу при загрузке (без данных)
-    // Устанавливаем начальный GAST
+    /* ══ Рендер ══ */
     setEarthRotation(GAST0);
-
     let last = 0;
     function animate(ts){
         requestAnimationFrame(animate);
-        const dt = ts - last; last = ts;
-
+        const dt = Math.min(ts - last, 100); last = ts;
         if(playing && data.length > 0){
             const next = currentIdx + playSpeed * dt * 0.02;
             if(next >= data.length-1){
                 setFrame(data.length-1); playing=false; document.getElementById('play-btn').textContent='▶ PLAY';
             } else { setFrame(Math.floor(next)); }
         }
-
-        // Пульсация маркера даже без данных
-        if(data.length === 0){
-            const pulse = 0.5 + 0.5 * Math.sin(ts * 0.003);
-            ringMat.opacity = pulse * 0.8;
-        }
-
         controls.update();
         renderer.render(scene, camera);
     }

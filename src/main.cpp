@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     std::string method = clp.method();
     std::string output = clp.output();
 
-    std::vector<std::pair<double, Control>> mfldata = Parcer::parce_mfl(MFL_DATA);
+    std::vector<std::pair<double, Vector3D>> mfldata = Parcer::parce_mfl(MFL_DATA);
     SimulationConfig sim_cfg = Parcer::parce_cfg(SYSTEM_CONFIG);
     Rocket rocket = Parcer::parce_rocket(ROCKET_CONFIG);
 

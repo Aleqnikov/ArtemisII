@@ -21,27 +21,18 @@ struct ControlParameters {
 
 class MFL {
 private:
-	std::vector<std::pair<double, Control>> data;
+	std::vector<std::pair<double, Vector3D>> data;
 
 	ControlParameters params;
 	Vector3D moon_plane_normal;
 
 public:
 	// Конструктор теперь будет сам высчитывать плоскость при создании
-	MFL(const std::vector<std::pair<double, Control>>& mfldata);
+	MFL(const std::vector<std::pair<double, Vector3D>>& mfldata);
 
 	Vector3D get_n(const System& system, const Vector& X, double t);
 	Control get_control(const System& system, const Vector& X, double t);
 
-	static Vector3D angles_to_n(double theta, double psi,
-					const Vector3D& up,
-					const Vector3D& east,
-					const Vector3D& north);
-
-	static Control velocity_to_control(const Vector3D& vel,
-						 const Vector3D& up,
-						 const Vector3D& east,
-						 const Vector3D& north);
 };
 
 #endif // ARTEMISII_MFL_H

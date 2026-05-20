@@ -81,7 +81,7 @@ namespace launch {
     const Vector3D east (-0.9996462375,  0.0181802840, -0.0194133241);  // эклиптика J2000
 }
 
-std::vector<std::pair<double, Control>> Parcer::parce_mfl(const std::string& path)
+std::vector<std::pair<double, Vector3D>> Parcer::parce_mfl(const std::string& path)
 {
     std::ifstream file(path);
     if (!file.is_open())
@@ -93,7 +93,7 @@ std::vector<std::pair<double, Control>> Parcer::parce_mfl(const std::string& pat
     const double cos_e = std::cos(EPS);
     const double sin_e = std::sin(EPS);
 
-    std::vector<std::pair<double, Control>> result;
+    std::vector<std::pair<double, Vector3D>> result;
     std::string line;
     bool data_started = false;
 
@@ -129,20 +129,11 @@ std::vector<std::pair<double, Control>> Parcer::parce_mfl(const std::string& pat
         double vx_ecl = vx;
         double vy_ecl =  vy * cos_e + vz * sin_e;
         double vz_ecl = -vy * sin_e + vz * cos_e;
-        Vector3D vel(vx_ecl * 1e3, vy_ecl * 1e3, vz_ecl * 1e3);
+        Vector3D vel(vx * 1000, vy * 1000, vz * 1000);
 
-        // Проекция на локальный базис (эклиптика) → углы управления
-        Control ctrl;
-        double len = vel.mod();
-        if (len < 1e-12) {
-            ctrl = { M_PI / 2.0, 0.0 };
-        } else {
-            Vector3D nv = vel / len;
-            ctrl.theta = std::asin(std::clamp(nv.dot(launch::up),   -1.0, 1.0));
-            ctrl.psi   = std::atan2(nv.dot(launch::east), nv.dot(north));
-        }
 
-        result.push_back({ t - 1342, ctrl });
+
+        result.push_back({ t - 1503, vel });
 
         // Строка 4: LT RG RR (пропускаем)
         if (!std::getline(file, line)) break;
