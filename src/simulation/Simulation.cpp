@@ -8,6 +8,9 @@ void Simulation::Run()
 
 	while (t_0 < system.t_end)
 	{
+		if (system.rocket.get_active_stages().size() == 1) {
+			t_0 += 0;
+		}
 		if (system.X.r.mod() < 6371000)
 		{
 			break;

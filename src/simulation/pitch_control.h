@@ -13,8 +13,11 @@ inline void step_control(System& system, double& t_0)
 
     std::vector<Stage*> active_stages = system.rocket.get_active_stages();
 
+
     Vector new_X = system.method(system.t_curr, system.X, system.h, f, &system);
     double fuel_used = system.X.m - new_X.m;
+
+
 
     double beta_total = 0.0;
     for (auto* stage : active_stages) {
@@ -91,6 +94,53 @@ inline void step_control(System& system, double& t_0)
             s->fuel_w = std::max(0.0, s->fuel_w - fuel_used_i);
         }
     }
+
+
+	// --- Проверка достижения целевого апогея (точная остановка двигателя) ---
+	if (!system.apogee_target_reached && system.target_apogee > 0.0) {
+
+		// Считаем апогей в новом состоянии
+		auto calc_apogee = [&](const Vector& X) -> double {
+			const double mu = 3.986004418e14;
+			double r = X.r.mod();
+			Vector3D h_vec = X.r.vecprod(X.v);
+			double h_mod = h_vec.mod();
+			double v_sq = X.v.dot(X.v);
+			double E = (v_sq / 2.0) - (mu / r);
+			if (E >= 0.0) return 1e18; // Гиперболическая — апогея нет
+			double a = -mu / (2.0 * E);
+			double disc = a * a + (h_mod * h_mod) / (2.0 * E);
+			if (disc < 0.0) return 0.0;
+			return (a + std::sqrt(disc)) - 6371000.0;
+		};
+
+		double apogee_before = calc_apogee(system.X);
+		double apogee_after  = calc_apogee(new_X);
+
+		// Если апогей пересёк целевую отметку — бинарный поиск
+		if (apogee_before < system.target_apogee && apogee_after >= system.target_apogee) {
+
+			double lo = 0.0, hi = system.h;
+			for (int i = 0; i < 60; ++i) {
+				double mid = (lo + hi) / 2.0;
+				Vector test_X = system.method(system.t_curr, system.X, mid, f, &system);
+				double test_apogee = calc_apogee(test_X);
+				if (std::abs(test_apogee - system.target_apogee) < 100.0) { // точность 100 м
+					lo = mid;
+					break;
+				}
+				if (test_apogee < system.target_apogee) lo = mid;
+				else                                     hi = mid;
+			}
+
+			system.h = lo;
+			new_X = system.method(system.t_curr, system.X, system.h, f, &system);
+
+			// Отключаем двигатели точно в этот момент
+			system.apogee_target_reached = true;
+			system.rocket.update_engine_programs(system.t_curr + system.h, 0);
+		}
+	}
 
     system.X = new_X;
     system.t_curr += system.h;

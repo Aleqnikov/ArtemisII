@@ -116,3 +116,10 @@ void Rocket::check_and_separate() {
         separate_stage(id);
     }
 }
+
+
+void Rocket::update_engine_programs(double t, double power) {
+	for (Stage* st : get_active_stages()) {
+		st->engine.update_program(t, power);
+	}
+}

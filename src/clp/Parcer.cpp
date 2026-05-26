@@ -133,7 +133,7 @@ std::vector<std::pair<double, Vector3D>> Parcer::parce_mfl(const std::string& pa
 
 
 
-        result.push_back({ t - 1503, vel });
+        result.push_back({ t, vel });
 
         // Строка 4: LT RG RR (пропускаем)
         if (!std::getline(file, line)) break;

@@ -17,6 +17,16 @@ struct Engine
 
     std::vector<std::pair<double, double>> throttle;
 
+	void update_program(double time, double power) {
+		for ( int i = throttle.size() - 1; i > 0; i-- ) {
+			if ( throttle[i].first > time ) {
+				throttle.pop_back();
+			} else {break;}
+		}
+
+		throttle.push_back(std::make_pair(time, power));
+	}
+
     double get_throttle(double t) const {
         if (throttle.empty()) return 0.0;
         if (t <= throttle.front().first) return throttle.front().second;

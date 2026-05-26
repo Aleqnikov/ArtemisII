@@ -37,6 +37,7 @@ struct Rocket {
 	ThrustResult compute_thrust(double t) const;
 	void separate_stage(int id);
 	void check_and_separate();
+	void update_engine_programs(double t, double power);
 
 	Rocket() = default;
 };

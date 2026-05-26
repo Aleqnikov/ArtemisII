@@ -24,6 +24,11 @@ public:
     MethodFn method;
     MFL mfl;
 
+
+	bool apogee_target_reached = false;
+	double target_apogee = 0.0; // Заполняется из MFL когда нужно
+	int mod = 0;
+
 	Vector3D n(const Vector& current_X, double t) {
 		return mfl.get_n(*this, current_X, t);
 	}

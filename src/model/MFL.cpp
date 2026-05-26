@@ -14,157 +14,184 @@ namespace launch {
     constexpr double EAST_Z = -0.0194133241;
 }
 
-// Целевая точка от профессора (JPL Horizons).
-// ВАЖНО: переведено из км и км/с в метры и м/с!
 const Vector3D TARGET_POS(-24442520.46, -14322896.36, -1284178.29);
 const Vector3D TARGET_VEL(-1844090.0, -3873750.0, -336390.0);
 
 MFL::MFL(const std::vector<std::pair<double, Vector3D>>& mfldata) : data(mfldata) {
-    // Высчитываем нормаль к плоскости орбиты Луны через векторное произведение (h = r x v)
     Vector3D h = TARGET_POS.vecprod(TARGET_VEL);
     moon_plane_normal = h.normalize();
 }
 
+enum {
+    START,
+    FIRST,
+    TLI,
+    BALISTIC,
+};
 
+double getOrientedAngle(const Vector3D& r1, const Vector3D& r2, const Vector3D& h) {
+    double dot = r1.dot(r2);
+    double mag1 = r1.mod();
+    double mag2 = r2.mod();
 
-Control MFL::get_control(const System& system, const Vector& X, double t)
-{
-    // Оставляем заглушку. Теперь ракетой управляет напрямую get_n
-    return Control{ 0 , 0 };
-}
+    double cos_theta = dot / (mag1 * mag2);
+    double angle = acos(std::max(-1.0, std::min(1.0, cos_theta)));
 
-
-Vector3D MFL::get_n(const System& system, const Vector& X, double t)
-{
-
-
-	if (t >= 10859) {
-
-		Vector3D diff = data.front().second - X.v;
-	}
-    // Защита от деления на ноль, если скорость вдруг нулевая
-    Vector3D v_dir = (X.v.mod() > 1e-5) ? X.v.normalize() : X.r.normalize();
-
-    // =========================================================================
-    // --- ПОЗДНЯЯ СТАДИЯ: ИНТЕРПОЛЯЦИЯ (t >= 10858 с) ---
-    // =========================================================================
-    if (t >= 90000.0) {
-       return system.X.v.normalize();
+    Vector3D w = r1.vecprod(r2);
+    if (w.dot(h) < 0) {
+        angle = -angle;
     }
 
+    return angle;
+}
+
+// Вспомогательная функция: считает высоту апоцентра по вектору состояния.
+// Возвращает -1.0 если орбита не эллиптическая.
+static double calc_apogee_alt(const Vector& X, double mu, double R_E) {
+    double r = X.r.mod();
+    Vector3D h_vec = X.r.vecprod(X.v);
+    double h_mod = h_vec.mod();
+    double v_sq = X.v.dot(X.v);
+    double E = (v_sq / 2.0) - (mu / r);
+
+    if (E >= 0.0) return -1.0; // Гиперболическая — апогея нет
+
+    double a = -mu / (2.0 * E);
+    double disc = a * a + (h_mod * h_mod) / (2.0 * E);
+    if (disc < 0.0) return -1.0;
+
+    return (a + std::sqrt(disc)) - R_E;
+}
+
+Vector3D MFL::get_n(System& system, const Vector& X, double t)
+{
     const double R_E        = 6371000.0;
-    const double TARGET_ALT = 185000.0;          // 185 км
-    const double R_TARGET   = R_E + TARGET_ALT;  // 6 556 000 м
+    const double TARGET_ALT = 185000.0;
+    const double R_TARGET   = R_E + TARGET_ALT;
     const double mu         = 3.986004418e14;
 
     double r_curr = X.r.mod();
     double h_curr = r_curr - R_E;
+    Vector3D v_dir = (X.v.mod() > 1e-5) ? X.v.normalize() : X.r.normalize();
 
-    // =========================================================================
-    // --- ФАЗА 4: МАНЁВР ПОДЪЁМА АПОЦЕНТРА ДО 70 377 КМ (От 5250 до 10858 с) ---
-    // =========================================================================
-    if (t >= 5250.0) {
-       const double TARGET_APOGEE_ALT = 70377000.0; // 70377 км в метрах
+    // ── МОД 0: Выведение на опорную орбиту 185×185 км ───────────────────────
+    if (system.mod == 0) {
+        Vector3D up_dir = X.r.normalize();
+        if (t < 130) {
+            return up_dir;
+        }
 
-       // 1. Считаем модуль углового момента h = |r x v|
-       Vector3D h_vec = X.r.vecprod(X.v);
-       double h_mod = h_vec.mod();
+        double v_radial = X.v.dot(up_dir);
+        Vector3D v_horiz_vec = X.v - up_dir * v_radial;
+        double v_horiz = v_horiz_vec.mod();
 
-       // 2. Считаем удельную энергию
-       double v_sq = X.v.dot(X.v);
-       double E_curr = (v_sq / 2.0) - (mu / r_curr);
+        double v_orb = std::sqrt(mu / R_TARGET);
+        if (t < 5612.0 && h_curr >= TARGET_ALT - 1000.0 && v_horiz >= v_orb - 5.0 && std::abs(v_radial) < 5.0) {
+            system.mod = 1;
+            system.rocket.update_engine_programs(t, 0);
+            return v_dir;
+        }
 
-       // Проверяем, эллиптическая ли орбита (E < 0)
-       if (E_curr < 0.0) {
-          // Большая полуось
-          double a = -mu / (2.0 * E_curr);
+        if (t < 450) {
+            const double A = -636638.01822281;
+            const double B = -21603260.16260338;
+            const double C =  252281532.75012207;
+            Vector3D plane_normal = Vector3D(A, B, C).normalize();
 
-          // Детерминант для апсидальных радиусов (под коренное выражение)
-          double discriminant = a * a + (h_mod * h_mod) / (2.0 * E_curr);
+            double dist_to_plane = X.r.dot(plane_normal);
+            double v_in_normal   = X.v.dot(plane_normal);
 
-          if (discriminant >= 0.0) {
-             // Радиус апоцентра (больший корень)
-             double r_apogee_curr = a + std::sqrt(discriminant);
-             double h_apogee_curr = r_apogee_curr - R_E;
+            double plane_correction = -0.00005 * dist_to_plane - 0.5 * v_in_normal;
+            plane_correction = std::clamp(plane_correction, -0.25, 0.25);
 
-             // Точная проверка достижения целевой высоты апоцентра
-             if (h_apogee_curr >= TARGET_APOGEE_ALT) {
-                // ВАЖНО: Выставляем флаг симулятору, чтобы он выключил подачу топлива!
-                return v_dir;
-             }
-          }
-       }
+            Vector3D prograde = v_horiz_vec;
+            if (prograde.mod() < 1e-3) {
+                prograde = plane_normal.vecprod(up_dir);
+            }
+            prograde = (prograde - plane_normal * prograde.dot(plane_normal)).normalize();
 
-       // Жжём строго по вектору скорости (Prograde)
-       return v_dir;
+            double h_err = TARGET_ALT - h_curr;
+            double target_v_radial = 0.0;
+            if (h_err > 0) {
+                double net_acceleration = (mu / (r_curr * r_curr)) - (v_horiz * v_horiz / r_curr);
+                net_acceleration = std::max(0.0, net_acceleration);
+                target_v_radial = std::sqrt(2.0 * net_acceleration * h_err) * 0.5;
+                if (target_v_radial > 150.0) target_v_radial = 150.0;
+            } else {
+                target_v_radial = 0.1 * h_err;
+            }
+
+            double v_radial_err = target_v_radial - v_radial;
+            double pitch_cmd = 0.05 * v_radial_err;
+            pitch_cmd = std::clamp(pitch_cmd, -0.3, 0.8);
+
+            Vector3D n = prograde + (up_dir * pitch_cmd) + (plane_normal * plane_correction);
+            return n.normalize();
+        } else {
+            system.mod = 1;
+            system.rocket.update_engine_programs(t, 0);
+        }
     }
 
-    // --- Фаза 1: вертикальный старт (0–130 с) ---
-    Vector3D up_dir = X.r.normalize();
-    if (t < 130) {
-        return up_dir;
+    // ── МОД 1: PRM — разгон до апогея 70 377 км ─────────────────────────────
+    if (system.mod == 1) {
+        // Если step_control уже отработал бинарный поиск — переходим дальше
+        if (system.apogee_target_reached) {
+            system.mod = 2;
+            system.apogee_target_reached = false;
+            system.target_apogee = 0.0;
+            return v_dir;
+        }
+
+        Vector3D start_point(2962370.4186, 5928486.4442, 520695.1830);
+        Vector3D v1(-9747.3788, 3603.7792, 284.6143);
+        Vector3D h = start_point.vecprod(v1);
+
+        double angle = getOrientedAngle(start_point, system.X.r, h);
+        if (angle >= 0 && angle < 0.1) {
+            system.rocket.update_engine_programs(t, 1);
+        }
+
+        // Ставим цель для step_control — он сам выключит двигатель точно вовремя
+        const double TARGET_APOGEE_ALT = 70366000.0;
+        if (system.target_apogee == 0.0) {
+            double h_ap = calc_apogee_alt(X, mu, R_E);
+            // Начинаем отслеживать только когда двигатель уже горит
+            // и апогей ещё не достигнут
+            if (h_ap > 0.0 && h_ap < TARGET_APOGEE_ALT) {
+                system.target_apogee = TARGET_APOGEE_ALT;
+            }
+        }
     }
 
-    // Вычисляем компоненты скорости для Фаз 2 и 3
-    double v_radial = X.v.dot(up_dir);
-    Vector3D v_horiz_vec = X.v - up_dir * v_radial;
-    double v_horiz = v_horiz_vec.mod();
+    // ── МОД 2: TLI — разгон до апогея 450 377 км ────────────────────────────
+    if (system.mod == 2) {
+        // Если step_control уже отработал бинарный поиск — переходим дальше
+        if (system.apogee_target_reached) {
+            system.mod = 3;
+            system.apogee_target_reached = false;
+            system.target_apogee = 0.0;
+            return v_dir;
+        }
 
-    // Проверка на достижение опорной круговой орбиты 185х185 км (Конец Фазы 3)
-    double v_orb = std::sqrt(mu / R_TARGET); // ~7793.15 м/с
-    if (t < 5612.0 && h_curr >= TARGET_ALT - 1000.0 && v_horiz >= v_orb - 5.0 && std::abs(v_radial) < 5.0) {
-        return v_dir; // Возвращаем вектор скорости вместо Vector3D(0,0,0) во избежание NaN
+        Vector3D start_point(510787.0098, 6553954.4434, 558862.7756 );
+        Vector3D v1(-10527.5579, 1556.2518, 37.1651);
+        Vector3D h = start_point.vecprod(v1);
+
+        double angle = getOrientedAngle(start_point, system.X.r, h);
+        if (angle > 0 && angle < 0.1) {
+            system.rocket.update_engine_programs(t, 1);
+        }
+
+        // Ставим цель для step_control
+        const double TARGET_APOGEE_ALT = 460229000.0;
+        if (system.target_apogee == 0.0) {
+            double h_ap = calc_apogee_alt(X, mu, R_E);
+            if (h_ap > 0.0 && h_ap < TARGET_APOGEE_ALT) {
+                system.target_apogee = TARGET_APOGEE_ALT;
+            }
+        }
     }
 
-    if (t < 450) {
-       // --- Фаза 2 и 3: Активное выведение в плоскость и накат круговой орбиты ---
-       const double A = -636638.01822281;
-       const double B = -21603260.16260338;
-       const double C =  252281532.75012207;
-       Vector3D plane_normal = Vector3D(A, B, C).normalize();
-
-       // Коррекция плоскости (убираем боковое смещение и боковую скорость)
-       double dist_to_plane = X.r.dot(plane_normal);
-       double v_in_normal   = X.v.dot(plane_normal);
-
-       double plane_correction = -0.00005 * dist_to_plane - 0.5 * v_in_normal;
-       plane_correction = std::clamp(plane_correction, -0.25, 0.25);
-
-       // Строим идеальный вектор движения вперед внутри плоскости
-       Vector3D prograde = v_horiz_vec;
-       if (prograde.mod() < 1e-3) {
-          prograde = plane_normal.vecprod(up_dir);
-       }
-       prograde = (prograde - plane_normal * prograde.dot(plane_normal)).normalize();
-
-       // Управление Тангажем (Pitch) через удержание вертикальной скорости.
-       double h_err = TARGET_ALT - h_curr;
-
-       // Желаемая вертикальная скорость (затухающая по мере приближения к 185 км)
-       double target_v_radial = 0.0;
-       if (h_err > 0) {
-          double net_acceleration = (mu / (r_curr * r_curr)) - (v_horiz * v_horiz / r_curr);
-          net_acceleration = std::max(0.0, net_acceleration); // Защита от NaN
-
-          target_v_radial = std::sqrt(2.0 * net_acceleration * h_err) * 0.5;
-          if (target_v_radial > 150.0) target_v_radial = 150.0;
-       } else {
-          target_v_radial = 0.1 * h_err;
-       }
-
-       double v_radial_err = target_v_radial - v_radial;
-
-       double pitch_cmd = 0.05 * v_radial_err;
-       pitch_cmd = std::clamp(pitch_cmd, -0.3, 0.8);
-
-       // Собираем финальный вектор тяги
-       Vector3D n = prograde + (up_dir * pitch_cmd) + (plane_normal * plane_correction);
-
-       return n.normalize();
-    }
-
-    // Если мы вышли за 450 секунд, но до 5612 секунд (ожидание точки включения)
-    // Просто летим по инерции, сонаправленно вектору скорости
     return v_dir;
 }
-

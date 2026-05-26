@@ -51,7 +51,7 @@ def parse_ephemeris(file_path):
             vz = float(parts_vel[2]) * 1000.0
 
             records.append({
-                't': t - 1503, 'x': x, 'y': y, 'z': z, 'vx': vx, 'vy': vy, 'vz': vz
+                't': t, 'x': x, 'y': y, 'z': z, 'vx': vx, 'vy': vy, 'vz': vz
             })
 
             idx += 4
@@ -64,7 +64,7 @@ def parse_ephemeris(file_path):
 
 # --- Настройки путей ---
 input_file = "horizons_results.txt"       # Исходный файл от Horizons
-output_file = "parsed_artemis.txt"  # Сюда запишем результат
+output_file = "parsed_artemis_nocorr.txt"  # Сюда запишем результат
 
 # 1. Парсим данные из исходного файла
 parsed_data = parse_ephemeris(input_file)

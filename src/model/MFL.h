@@ -30,8 +30,8 @@ public:
 	// Конструктор теперь будет сам высчитывать плоскость при создании
 	MFL(const std::vector<std::pair<double, Vector3D>>& mfldata);
 
-	Vector3D get_n(const System& system, const Vector& X, double t);
-	Control get_control(const System& system, const Vector& X, double t);
+	Vector3D get_n( System& system, const Vector& X, double t);
+
 
 };
 
