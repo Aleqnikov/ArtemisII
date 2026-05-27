@@ -8,7 +8,7 @@ void Simulation::Run()
 
 	while (t_0 < system.t_end)
 	{
-		if (system.rocket.get_active_stages().size() == 1) {
+		if ( t_0 > 500) {
 			t_0 += 0;
 		}
 		if (system.X.r.mod() < 6371000)

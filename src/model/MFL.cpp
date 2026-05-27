@@ -17,7 +17,7 @@ namespace launch {
 const Vector3D TARGET_POS(-24442520.46, -14322896.36, -1284178.29);
 const Vector3D TARGET_VEL(-1844090.0, -3873750.0, -336390.0);
 
-MFL::MFL(const std::vector<std::pair<double, Vector3D>>& mfldata) : data(mfldata) {
+MFL::MFL(void)  {
     Vector3D h = TARGET_POS.vecprod(TARGET_VEL);
     moon_plane_normal = h.normalize();
 }
@@ -77,87 +77,124 @@ Vector3D MFL::get_n(System& system, const Vector& X, double t)
     // ── МОД 0: Выведение на опорную орбиту 185×185 км ───────────────────────
     if (system.mod == 0) {
         Vector3D up_dir = X.r.normalize();
+
+        // ── 0а: Вертикальный подъём ──────────────────────────────────────────────
         if (t < 130) {
             return up_dir;
         }
 
         double v_radial = X.v.dot(up_dir);
         Vector3D v_horiz_vec = X.v - up_dir * v_radial;
-        double v_horiz = v_horiz_vec.mod();
 
-        double v_orb = std::sqrt(mu / R_TARGET);
-        if (t < 5612.0 && h_curr >= TARGET_ALT - 1000.0 && v_horiz >= v_orb - 5.0 && std::abs(v_radial) < 5.0) {
-            system.mod = 1;
-            system.rocket.update_engine_programs(t, 0);
+        // ── 0б: Gravity turn до MECO (~437 сек) ─────────────────────────────────
+        if (t < 440) {
+           const double A = -636638.01822281;
+           const double B = -21603260.16260338;
+           const double C =  252281532.75012207;
+           Vector3D plane_normal = Vector3D(A, B, C).normalize();
+
+           double dist_to_plane = X.r.dot(plane_normal);
+           double v_in_normal   = X.v.dot(plane_normal);
+
+           double plane_correction = -0.00005 * dist_to_plane - 0.5 * v_in_normal;
+           plane_correction = std::clamp(plane_correction, -0.25, 0.25);
+
+           Vector3D prograde = v_horiz_vec;
+           if (prograde.mod() < 1e-3) {
+              prograde = plane_normal.vecprod(up_dir);
+           }
+           prograde = (prograde - plane_normal * prograde.dot(plane_normal)).normalize();
+
+           double target_v_radial;
+           if (t < 250.0) {
+              double frac = (t - 130.0) / (250.0 - 130.0);
+              target_v_radial = 300.0 * (1.0 - frac);
+           } else {
+              double h_err = TARGET_ALT - h_curr;
+              target_v_radial = std::clamp(0.05 * h_err, -80.0, 20.0);
+           }
+
+           double v_radial_err = target_v_radial - v_radial;
+           double pitch_cmd = std::clamp(0.04 * v_radial_err, -0.5, 0.6);
+
+           Vector3D n = prograde + (up_dir * pitch_cmd) + (plane_normal * plane_correction);
+           return n.normalize();
+        }
+
+        // ── 0в: Баллистика после MECO, ждём апогея ──────────────────────────────
+        if (!system.prm_started) {
+            if (h_curr > 150000.0 && v_radial < 30.0 && v_radial > -30.0) {
+                system.prm_started = true;
+                system.rocket.update_engine_programs(t, 1); // включаем ICPS
+            }
             return v_dir;
         }
 
-        if (t < 450) {
-            const double A = -636638.01822281;
-            const double B = -21603260.16260338;
-            const double C =  252281532.75012207;
-            Vector3D plane_normal = Vector3D(A, B, C).normalize();
+        // ── 0г: ICPS горит — поднимаем перигей до 185 км ────────────────────────
+        const double TARGET_PERIGEE_ALT = 185000.0;
 
-            double dist_to_plane = X.r.dot(plane_normal);
-            double v_in_normal   = X.v.dot(plane_normal);
+        // Вычисляем текущий перигей КАЖДЫЙ кадр, а не только когда target == 0
+        double r      = X.r.mod();
+        Vector3D hv   = X.r.vecprod(X.v);
+        double h_mod  = hv.mod();
+        double v_sq   = X.v.dot(X.v);
+        double E      = v_sq / 2.0 - mu / r;
 
-            double plane_correction = -0.00005 * dist_to_plane - 0.5 * v_in_normal;
-            plane_correction = std::clamp(plane_correction, -0.25, 0.25);
+        double h_pe = -1.0;
+        bool valid_orbit = false;
 
-            Vector3D prograde = v_horiz_vec;
-            if (prograde.mod() < 1e-3) {
-                prograde = plane_normal.vecprod(up_dir);
+        if (E < 0.0) {
+            double a    = -mu / (2.0 * E);
+            double disc = a * a + (h_mod * h_mod) / (2.0 * E);
+            disc = std::max(0.0, disc); // Защита от NaN при идеально круговой орбите
+
+            h_pe = (a - std::sqrt(disc)) - R_E;
+            valid_orbit = true;
+
+            if (system.target_perigee == 0.0 && h_pe < TARGET_PERIGEE_ALT) {
+                system.target_perigee = TARGET_PERIGEE_ALT;
             }
-            prograde = (prograde - plane_normal * prograde.dot(plane_normal)).normalize();
-
-            double h_err = TARGET_ALT - h_curr;
-            double target_v_radial = 0.0;
-            if (h_err > 0) {
-                double net_acceleration = (mu / (r_curr * r_curr)) - (v_horiz * v_horiz / r_curr);
-                net_acceleration = std::max(0.0, net_acceleration);
-                target_v_radial = std::sqrt(2.0 * net_acceleration * h_err) * 0.5;
-                if (target_v_radial > 150.0) target_v_radial = 150.0;
-            } else {
-                target_v_radial = 0.1 * h_err;
-            }
-
-            double v_radial_err = target_v_radial - v_radial;
-            double pitch_cmd = 0.05 * v_radial_err;
-            pitch_cmd = std::clamp(pitch_cmd, -0.3, 0.8);
-
-            Vector3D n = prograde + (up_dir * pitch_cmd) + (plane_normal * plane_correction);
-            return n.normalize();
-        } else {
-            system.mod = 1;
-            system.rocket.update_engine_programs(t, 0);
         }
+
+        // РУЧНОЙ ПЕРЕХВАТ: Если step_control не умеет отключать двигатель по перигею, делаем это сами
+        if (system.target_perigee > 0.0 && valid_orbit && h_pe >= TARGET_PERIGEE_ALT) {
+            system.perigee_target_reached = true;
+            system.rocket.update_engine_programs(t, 0); // Принудительно глушим двигатель (0 = выкл)
+        }
+
+        // Когда перигей поднят — переходим в мод 1
+        if (t > 6000) {
+            system.mod = 1;
+            system.prm_started            = false;
+            system.perigee_target_reached = false;
+            system.target_perigee         = 0.0;
+            return v_dir;
+        }
+
+        return v_dir; // prograde во время PRM
     }
 
     // ── МОД 1: PRM — разгон до апогея 70 377 км ─────────────────────────────
     if (system.mod == 1) {
-        // Если step_control уже отработал бинарный поиск — переходим дальше
-        if (system.apogee_target_reached) {
+        if (system.apogee_target_reached && t  > 8000) {
             system.mod = 2;
             system.apogee_target_reached = false;
             system.target_apogee = 0.0;
             return v_dir;
         }
 
-        Vector3D start_point(2962370.4186, 5928486.4442, 520695.1830);
-        Vector3D v1(-9747.3788, 3603.7792, 284.6143);
+        Vector3D start_point(4.24525e+06, 5.33487e+06, 492217);
+        Vector3D v1(-6843.68, 4338.22, 377.987);
         Vector3D h = start_point.vecprod(v1);
 
         double angle = getOrientedAngle(start_point, system.X.r, h);
         if (angle >= 0 && angle < 0.1) {
-            system.rocket.update_engine_programs(t, 1);
+            system.rocket.update_engine_programs(t, 1.05);
         }
 
-        // Ставим цель для step_control — он сам выключит двигатель точно вовремя
         const double TARGET_APOGEE_ALT = 70366000.0;
         if (system.target_apogee == 0.0) {
             double h_ap = calc_apogee_alt(X, mu, R_E);
-            // Начинаем отслеживать только когда двигатель уже горит
-            // и апогей ещё не достигнут
             if (h_ap > 0.0 && h_ap < TARGET_APOGEE_ALT) {
                 system.target_apogee = TARGET_APOGEE_ALT;
             }
@@ -166,7 +203,6 @@ Vector3D MFL::get_n(System& system, const Vector& X, double t)
 
     // ── МОД 2: TLI — разгон до апогея 450 377 км ────────────────────────────
     if (system.mod == 2) {
-        // Если step_control уже отработал бинарный поиск — переходим дальше
         if (system.apogee_target_reached) {
             system.mod = 3;
             system.apogee_target_reached = false;
@@ -179,12 +215,11 @@ Vector3D MFL::get_n(System& system, const Vector& X, double t)
         Vector3D h = start_point.vecprod(v1);
 
         double angle = getOrientedAngle(start_point, system.X.r, h);
-        if (angle > 0 && angle < 0.1) {
-            system.rocket.update_engine_programs(t, 1);
+        if (angle >= 0 && angle < 0.01) {
+            system.rocket.update_engine_programs(t, 0.975);
         }
 
-        // Ставим цель для step_control
-        const double TARGET_APOGEE_ALT = 460229000.0;
+        const double TARGET_APOGEE_ALT = 457529000.0;
         if (system.target_apogee == 0.0) {
             double h_ap = calc_apogee_alt(X, mu, R_E);
             if (h_ap > 0.0 && h_ap < TARGET_APOGEE_ALT) {
@@ -192,6 +227,17 @@ Vector3D MFL::get_n(System& system, const Vector& X, double t)
             }
         }
     }
+
+	if (system.mod == 3) {
+		if (t >= 315007) {
+			system.rocket.update_engine_programs(t, 0.5);
+		}
+
+		if  (t > 315007 + 5.5) {
+			system.rocket.update_engine_programs(t, 0);
+			system.mod = 4;
+		}
+	}
 
     return v_dir;
 }

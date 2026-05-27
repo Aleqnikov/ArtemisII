@@ -29,6 +29,11 @@ public:
 	double target_apogee = 0.0; // Заполняется из MFL когда нужно
 	int mod = 0;
 
+	bool perigee_target_reached = false;  // ← добавить
+	double target_perigee = 0.0;          // ← добавить
+
+	bool prm_started = false;             // ← добавить (для фазы 0)
+
 	Vector3D n(const Vector& current_X, double t) {
 		return mfl.get_n(*this, current_X, t);
 	}
@@ -38,7 +43,7 @@ public:
     System (SimulationConfig sim_cfg,
         Rocket rocket,
         std::string method,
-        std::vector<std::pair<double, Vector3D>> thottle_control,
+
         double h);
 };
 

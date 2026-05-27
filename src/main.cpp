@@ -19,14 +19,11 @@ int main(int argc, char *argv[]) {
     std::string method = clp.method();
     std::string output = clp.output();
 
-    std::vector<std::pair<double, Vector3D>> mfldata = Parcer::parce_mfl(MFL_DATA);
     SimulationConfig sim_cfg = Parcer::parce_cfg(SYSTEM_CONFIG);
     Rocket rocket = Parcer::parce_rocket(ROCKET_CONFIG);
 
-    System system(sim_cfg, rocket, method, mfldata, h);
 
-
-    System system_full(sim_cfg, rocket, method, mfldata, h);
+    System system_full(sim_cfg, rocket, method, h);
 	Telemetry  telemetry(system_full, output);
     Simulation simulator(system_full, telemetry);
     simulator.Run();

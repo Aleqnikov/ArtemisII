@@ -142,6 +142,49 @@ inline void step_control(System& system, double& t_0)
 		}
 	}
 
+
+	// --- Проверка достижения целевого перигея (точная остановка двигателя) ---
+	if (!system.perigee_target_reached && system.target_perigee > 0.0) {
+
+		auto calc_perigee = [&](const Vector& X) -> double {
+			const double mu = 3.986004418e14;
+			double r = X.r.mod();
+			Vector3D h_vec = X.r.vecprod(X.v);
+			double h_mod = h_vec.mod();
+			double v_sq = X.v.dot(X.v);
+			double E = (v_sq / 2.0) - (mu / r);
+			if (E >= 0.0) return 1e18;
+			double a = -mu / (2.0 * E);
+			double disc = a * a + (h_mod * h_mod) / (2.0 * E);
+			if (disc < 0.0) return 0.0;
+			return (a - std::sqrt(disc)) - 6371000.0; // ← минус, это перигей
+		};
+
+		double perigee_before = calc_perigee(system.X);
+		double perigee_after  = calc_perigee(new_X);
+
+		if (perigee_before < system.target_perigee && perigee_after >= system.target_perigee) {
+
+			double lo = 0.0, hi = system.h;
+			for (int i = 0; i < 60; ++i) {
+				double mid = (lo + hi) / 2.0;
+				Vector test_X = system.method(system.t_curr, system.X, mid, f, &system);
+				double test_perigee = calc_perigee(test_X);
+				if (std::abs(test_perigee - system.target_perigee) < 100.0) {
+					lo = mid;
+					break;
+				}
+				if (test_perigee < system.target_perigee) lo = mid;
+				else                                       hi = mid;
+			}
+
+			system.h = lo;
+			new_X = system.method(system.t_curr, system.X, system.h, f, &system);
+
+			system.perigee_target_reached = true;
+			system.rocket.update_engine_programs(system.t_curr + system.h, 0);
+		}
+	}
     system.X = new_X;
     system.t_curr += system.h;
     t_0 = system.t_curr;

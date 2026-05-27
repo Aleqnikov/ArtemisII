@@ -21,14 +21,13 @@ struct ControlParameters {
 
 class MFL {
 private:
-	std::vector<std::pair<double, Vector3D>> data;
 
 	ControlParameters params;
 	Vector3D moon_plane_normal;
 
 public:
 	// Конструктор теперь будет сам высчитывать плоскость при создании
-	MFL(const std::vector<std::pair<double, Vector3D>>& mfldata);
+	MFL();
 
 	Vector3D get_n( System& system, const Vector& X, double t);
 
